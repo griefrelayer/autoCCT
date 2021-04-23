@@ -13,7 +13,7 @@ import numpy as np
 from pyimagesearch.shapedetector import ShapeDetector
 
 
-camera_folder = '/sdcard/DCIM/Camera'
+camera_folder = '/storage/self/primary/DCIM/Camera'
 checker = 'spydercheckr24'
 if '--xrite' in argv:
     checker = 'x-rite'
@@ -402,7 +402,7 @@ def engage_cct_matrix(cubes, image, temperature='warm'):
 
 
 def get_cct_matrix_file_from_phone():
-    print(adb_command("pull /sdcard/DCIM/PhotonCamera/customCCT.txt customCCT.txt"))
+    print(adb_command("pull /storage/self/primary/DCIM/PhotonCamera/customCCT.txt customCCT.txt"))
 
 
 def parse_cct_matrix_from_file(filename='customCCT.txt'):  # making cubes dict with ndarrays of matrices from file
@@ -648,7 +648,7 @@ def save_cubes_to_local_file(cubes: dict, custom_format=False, temp='warm', file
 
 def save_cubes_to_phone(cubes, single_cube=False, temp='warm'):
     save_cubes_to_local_file(cubes, single_cube, temp)
-    adb_command('push customCCT_autoCubes.txt /sdcard/DCIM/PhotonCamera/customCCT.txt')
+    adb_command('push customCCT_autoCubes.txt /storage/self/primary/DCIM/PhotonCamera/customCCT.txt')
     print('Сохранено на телефоне.')
 
 
