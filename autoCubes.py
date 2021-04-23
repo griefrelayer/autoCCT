@@ -134,8 +134,15 @@ def get_photo_colors(img, points_list):
 
 
 def opencv_find_etalon(image_filename):
-    img = cv2.imread(os.path.join(__location__, image_filename))
-    # print(img.shape)
+    # img = cv2.imread(os.path.join(__location__, image_filename).replace('\\', '/'))
+    try:
+        img = Image.open(os.path.join(__location__, image_filename))
+    except FileNotFoundError:
+        print('Не могу найти файл фото!')
+    pil_image = img.convert('RGB')
+    open_cv_image = np.array(pil_image)
+    img = open_cv_image[:, :, ::-1].copy()
+    print(img.shape)
     if img.shape[0] < img.shape[1]:
         img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
     resized = cv2.resize(img, (600, 800))
@@ -246,7 +253,7 @@ def get_colors_from_test_photo(image='', photo_file='last_photo.jpg'):
 
     if custom_image_flag:
         photo_file = custom_image_filename
-
+    print(os.path.join(__location__, photo_file))
     for i in range(5):
         try:
             if not image:
