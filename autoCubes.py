@@ -12,7 +12,7 @@ import numpy as np
 # import rawpy
 from pyimagesearch.shapedetector import ShapeDetector
 
-
+__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 camera_folder = '/storage/self/primary/DCIM/Camera'
 checker = 'spydercheckr24'
 if '--xrite' in argv:
@@ -37,7 +37,7 @@ xrite_remodeled = [[243, 243, 242], [200, 200, 200], [160, 160, 160], [122, 122,
 
 
 def adb_command(command):
-    response = subprocess.check_output("adb " + command, shell=True)
+    response = subprocess.check_output(os.path.join(__location__, "adb/adb") + " " + command, shell=True)
     return response
 
 
@@ -134,7 +134,7 @@ def get_photo_colors(img, points_list):
 
 
 def opencv_find_etalon(image_filename):
-    img = cv2.imread(image_filename)
+    img = cv2.imread(os.path.join(__location__, image_filename))
     # print(img.shape)
     if img.shape[0] < img.shape[1]:
         img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
@@ -250,7 +250,7 @@ def get_colors_from_test_photo(image='', photo_file='last_photo.jpg'):
     for i in range(5):
         try:
             if not image:
-                with Image.open(photo_file) as im:
+                with Image.open(os.path.join(__location__, photo_file)) as im:
                     points = []
                     im = ImageEnhance.Sharpness(im).enhance(0.2)
                     if im.size[0] > im.size[1]:  # Rotate if horizontal
@@ -323,7 +323,7 @@ def find_matrix_changer(etalon: np.array, sample: np.array):
 
 
 def get_etalon_colors():
-    with Image.open("etalon_crop.jpg") as im:
+    with Image.open(os.path.join(__location__, "etalon_crop.jpg")) as im:
         points = []
         for x in x_multipliers:
             for y in y_multipliers:
@@ -407,7 +407,7 @@ def get_cct_matrix_file_from_phone():
 
 def parse_cct_matrix_from_file(filename='customCCT.txt'):  # making cubes dict with ndarrays of matrices from file
     try:
-        with open(filename) as fp:
+        with open(os.path.join(__location__, filename)) as fp:
             file_contents = fp.readlines()
 
     except:
@@ -640,7 +640,7 @@ def save_cubes_to_local_file(cubes: dict, custom_format=False, temp='warm', file
         matrix_to_text(normalize_matrix(cubes[temp]['lights']))}"""
 
     try:
-        with open(filename, 'w') as fp:
+        with open(os.path.join(__location__, filename), 'w') as fp:
             fp.write(file_text)
     except:
         print('Не могу записать в файл...')
