@@ -5,8 +5,11 @@ To install requirements, use the command:
 Connect and authorise phone to adb to automatically get new photos or use --nophone to get colorchecker photo locally (save it to last_photo.jpg in the folder from you're starting script)
 
 Normally with adb connected phone you should use script like that:
+
   python autoCubes.py --from0 --matrix
-  or
+ 
+ or
+  
   python autoCubes.py --from0 --gcam --matrix
   for gcam
   
