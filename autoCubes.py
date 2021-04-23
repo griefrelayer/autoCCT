@@ -1177,7 +1177,7 @@ if '--onlycheck' not in argv:
         backup_cubes = cct_cubes.copy()
     else:
         if '--nophone' not in argv and '--gcam' not in argv:
-            if '--backupcct' not in argv:
+            if '--backupcct' in argv:
                 get_cct_matrix_file_from_phone()
                 backup_cubes = parse_cct_matrix_from_file()
                 # print(backup_cubes)
