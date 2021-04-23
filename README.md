@@ -43,7 +43,7 @@ There's also different keys, that i'll explain later.
   
   для PhotonCamera
   
-Если вы хотите использовать цветовую мишень x-rite, добавьте ключ --xrite
+Если вы хотите использовать цветовую мишень x-rite, добавьте ключ **--xrite**
 
   **python autoCubes.py --from0 --matrix --gcam --xrite**
  
