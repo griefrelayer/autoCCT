@@ -1203,7 +1203,8 @@ if '--onlycheck' not in argv:
             do_the_calibration(cct_cubes, 1, 'cool', backup_cubes)
         else:
             do_the_calibration(cct_cubes, 1, 'warm', backup_cubes)
-if input('Проверить/уточнить калибровку? y/n: ').lower() == 'y':
-    check_calibration()
+if '--noinputs' not in argv:
+    if input('Проверить/уточнить калибровку? y/n: ').lower() == 'y':
+        check_calibration()
 
 # save_cubes_to_local_file(cct_cubes)
