@@ -723,8 +723,10 @@ def check_calibration(cubes='', temp='warm'):
 
     if '--nophone' not in argv:
         save_cubes_to_phone(curr_cubes, True)
-
-    once_more = input('Хотите еще раз проверить и уточнить калибровку? y/n: ')
+    if '--noinputs' not in argv:
+        once_more = input('Хотите еще раз проверить и уточнить калибровку? y/n: ')
+    else:
+        once_more = 'n'
 
     if once_more.lower() == 'y':
         check_calibration(temp=temp)
