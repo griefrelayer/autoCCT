@@ -154,7 +154,7 @@ def opencv_find_etalon(image_filename):
     gray = cv2.cvtColor(img4, cv2.COLOR_BGR2GRAY)
 
     thresh = cv2.threshold(gray, 150, 200, cv2.THRESH_BINARY)[1]
-    cv2.imshow('thresh', thresh)
+    # cv2.imshow('thresh', thresh)
     # find contours in the thresholded image and initialize the
     # shape detector
     cnts = cv2.findContours(thresh.copy(), cv2.RETR_TREE,
