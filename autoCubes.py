@@ -1,10 +1,11 @@
-from PIL import Image, ImageEnhance
+from PIL import Image, ImageEnhance, ImageOps
 import subprocess
 import time
 import re
 import glob
 import os
 from sys import argv
+from sys import exit
 
 import cv2
 import imutils
@@ -37,7 +38,15 @@ xrite_remodeled = [[243, 243, 242], [200, 200, 200], [160, 160, 160], [122, 122,
 
 
 def adb_command(command):
-    response = subprocess.check_output(os.path.join(__location__, "adb/adb") + " " + command, shell=True)
+    try:
+        response = subprocess.check_output(os.path.join(__location__, "adb/adb") + " " + command, timeout=5)
+    except subprocess.CalledProcessError:
+        print('Произошла ошибка adb. Проверьте, подключен ли телефон.')
+        exit()
+        response = 'Ошибка!'
+    except subprocess.TimeoutExpired:
+        print('Процесс adb превысил время ожидания и был закрыт. Попробуем еще раз')
+        response = adb_command(command)
     return response
 
 
@@ -133,6 +142,11 @@ def get_photo_colors(img, points_list):
     return average_colors
 
 
+def show_result():
+    with open(os.path.join(__location__, 'customCCT_autoCubes.txt')) as fp:
+        print('Результат калибровки:\r\n', fp.read())
+
+
 def opencv_find_etalon(image_filename):
     # img = cv2.imread(os.path.join(__location__, image_filename).replace('\\', '/'))
     try:
@@ -142,7 +156,7 @@ def opencv_find_etalon(image_filename):
     pil_image = img.convert('RGB')
     open_cv_image = np.array(pil_image)
     img = open_cv_image[:, :, ::-1].copy()
-    print(img.shape)
+    # print(img.shape)
     if img.shape[0] < img.shape[1]:
         img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
     resized = cv2.resize(img, (600, 800))
@@ -182,7 +196,7 @@ def opencv_find_etalon(image_filename):
         h = ''
         if shape == 'square' or shape == 'rectangle':
             x, y, w, h = cv2.boundingRect(c)
-            if 10 < w < 150 and 10 < h < 150:
+            if 75 < w < 150 and 75 < h < 150:
                 if x < min_x:
                     min_x = x
                 if x+w > max_x:
@@ -230,7 +244,8 @@ def opencv_find_etalon(image_filename):
     cv2.imshow('Lines', resized)
     cv2.waitKey(0)'''
     cv2.destroyAllWindows()
-    print(max_min)
+    if '--debug' in argv:
+        print("Cropped area: ", max_min)
     return max_min
 
 
@@ -253,13 +268,14 @@ def get_colors_from_test_photo(image='', photo_file='last_photo.jpg'):
 
     if custom_image_flag:
         photo_file = custom_image_filename
-    print(os.path.join(__location__, photo_file))
+    # print(os.path.join(__location__, photo_file))
     for i in range(5):
         try:
             if not image:
                 with Image.open(os.path.join(__location__, photo_file)) as im:
                     points = []
                     im = ImageEnhance.Sharpness(im).enhance(0.2)
+                    # im = ImageOps.equalize(im)   # Equalizing histogram
                     if im.size[0] > im.size[1]:  # Rotate if horizontal
                         im = im.rotate(270, expand=True)
 
@@ -611,21 +627,7 @@ def save_cubes_to_local_file(cubes: dict, custom_format=False, temp='warm', file
                 text += '\n'
         return text
 
-    if '--matrix' in argv:
-        file_text = f"""MATRIX\n\n{matrix_to_text(normalize_matrix(cubes['warm']['midtones']))}"""
-    elif '--matrixes' in argv:
-        w_p = cubes.get('warm_point')
-        if w_p is None:
-            w_p = '0.7,1.0,0.4\n'
-        c_p = cubes.get('cool_point')
-        if c_p is None:
-            c_p = '0.5,1.0,0.72\n'
-        file_text = f"""MATRIXES\n\n{
-        w_p}\n{
-        matrix_to_text(normalize_matrix(cubes['warm']['midtones']))}\n\n{
-        c_p}\n{
-        matrix_to_text(normalize_matrix(cubes['cool']['midtones']))}\n\n"""
-    elif not custom_format:
+    if '--cubes' in argv:   # Cubes
         w_p = cubes.get('warm_point')
         if w_p is None:
             w_p = '0.7,1.0,0.4\n'
@@ -641,10 +643,26 @@ def save_cubes_to_local_file(cubes: dict, custom_format=False, temp='warm', file
         matrix_to_text(normalize_matrix(cubes['cool']['shadows']))}\n\n{
         matrix_to_text(normalize_matrix(cubes['cool']['midtones']))}\n\n{
         matrix_to_text(normalize_matrix(cubes['cool']['lights']))}"""
+    elif '--matrixes' in argv:   # Matrices
+        w_p = cubes.get('warm_point')
+        if w_p is None:
+            w_p = '0.7,1.0,0.4\n'
+        c_p = cubes.get('cool_point')
+        if c_p is None:
+            c_p = '0.5,1.0,0.72\n'
+        file_text = f"""MATRIXES\n\n{
+        w_p}\n{
+        matrix_to_text(normalize_matrix(cubes['warm']['midtones']))}\n\n{
+        c_p}\n{
+        matrix_to_text(normalize_matrix(cubes['cool']['midtones']))}\n\n"""
+    elif not custom_format or '--gcam' in argv:   # Matrix
+        file_text = f"""MATRIX\n\n{matrix_to_text(normalize_matrix(cubes['warm']['midtones']))}"""
     else:
         file_text = f"""CUBE\n\n{matrix_to_text(normalize_matrix(cubes[temp]['shadows']))}\n\n{
         matrix_to_text(normalize_matrix(cubes[temp]['midtones']))}\n\n{
         matrix_to_text(normalize_matrix(cubes[temp]['lights']))}"""
+    if '--debug' in argv:
+        print("В телефон будет записана матрица: \r\n", file_text)
 
     try:
         with open(os.path.join(__location__, filename), 'w') as fp:
@@ -656,21 +674,33 @@ def save_cubes_to_local_file(cubes: dict, custom_format=False, temp='warm', file
 def save_cubes_to_phone(cubes, single_cube=False, temp='warm'):
     save_cubes_to_local_file(cubes, single_cube, temp)
     adb_command('push customCCT_autoCubes.txt /storage/self/primary/DCIM/PhotonCamera/customCCT.txt')
-    print('Сохранено на телефоне.')
+    print('Сохранено на телефоне. Проверяйте калибровку.')
 
 
 def help_message():
     text = """
-    Перед началом калибровки убедитесь, что указанная точка белого соответствует текущим условиям съёмки.
-    Не забудьте после проверки выключить дебаг-режим. Снимайте цветовую мишень так, чтобы она как раз 
-    помещалась в кадр и не оставалось больших зазоров между ее краями и краями кадра, потому что иначе 
-    цвета будут считываться неправильно. Лучше начинайте калибровку с нуля с ключом --from0, 
-    в этом случае калибровка начнется с нуля, то есть с кубов из 1 и 0.
+    Перед началом калибровки убедитесь, что вы снимаете мишень в необходимых условиях баланса белого.
+    Если вы будете использовать одну матрицу(gcam), снимайте в условиях нейтрального освещения(дневной свет, лампа дневного света)
+    Снимайте цветовую мишень так, чтобы белый квадратик мишени был слева. При этом не важно, горизонтально или вертикально.
+    Для Gcam добавьте ключ --gcam.
+    Для использования с чекером x-rite  добавьте ключ --xrite.
+    Если калибруете две матрицы/кубы для теплой или холодной температур, по умолчанию калибруется теплая матрица.
+    Для калибровки холодной добавьте ключ --cool
+    Для двух матриц добавьте --matrixes
+    (правильно matrices, но у некоторых талантливых разрабов проблемы с английским)
+    Для куба добавьте --cube
+    Для кубов --cubes
+    
+    Если вы снимаете на PhotonCamera и телефон подключен по adb, то при калибровке автоматически выставится матрица для калибровки.
+    Если вы снимаете на Gcam с функцией cct, перед калибровкой отключите настройки цвета и выставьте матрицу следующим образом:
+    Rr: 1  Rg: 0  Rb: 0
+    Gr: 0  Gg: 1  Gb: 0
+    Br: 0  Bg: 0  Bb: 0
     """
     return text
 
 
-def check_calibration(cubes='', temp='warm'):
+def check_calibration(cubes, temp='warm', np_sample_was=np.array([]), np_etalon_was=np.array([])):
     print('Проверим калибровку.\r\n')
     time.sleep(1)
     print('Сделайте снимок цветового эталона.')
@@ -678,58 +708,90 @@ def check_calibration(cubes='', temp='warm'):
         pull_last_photo(wait_for_new_photo(camera_folder))
         time.sleep(1)
     col1 = get_colors_from_test_photo()
-    if (checker == 'x-rite'):
+    if checker == 'x-rite':
         col1 = col1[0:6] + col1[11:5:-1] + col1[12:18] + col1[23:17:-1]
         np_etalon = np.array(xrite_remodeled)
     else:
         np_etalon = np.array(spydercheckr24_colors)
     np_sample = np.array(col1)
 
+    if '--debug' in argv:
+        print('Was:\r\n', np_sample_was[9:12])
+        print('Computed with matrix correction:\r\n', apply_matrix(np_sample_was[9:12], cubes[temp]['midtones']).astype('int'))
+        print('Real correction:\r\n', np_sample[9:12])
 
     # print(col1)
     # print(spydercheckr24_colors)
     # shadows = np.argwhere(np_sample.sum(axis=1) < 256)
-    curr_cubes = parse_cct_matrix_from_file('customCCT_autoCubes.txt')
+    cubes = parse_cct_matrix_from_file('customCCT_autoCubes.txt')
     # print(shadows)
+    temperature = temp
 
-    '''etalon_mults = np_etalon / np_etalon.sum(axis=1)[:, None]
-    sample_mults = np_sample / np_sample.sum(axis=1)[:, None]
-    diff_mult = etalon_mults - sample_mults
-    
-    red_mult = diff_mult[9] * np_etalon[9, 0] / np_etalon[9].sum()
-    green_mult = diff_mult[10] * np_etalon[10, 1] / np_etalon[10].sum()
-    blue_mult = diff_mult[11] * np_etalon[11, 2] / np_etalon[11].sum()
-    '''
     mod = find_matrix_changer(np_etalon[9:12], np_sample[9:12])
 
-    print(curr_cubes[temp]['midtones'], '\r\n', mod)
+    # print(cubes[temperature]['midtones'], '\r\n', mod)
 
-    curr_cubes[temp]['shadows'] += mod
-    curr_cubes[temp]['midtones'] += mod
-    curr_cubes[temp]['lights'] += mod
+    # Shadows
+    r_sum = cubes[temperature]['shadows'][0].sum()
+    g_sum = cubes[temperature]['shadows'][1].sum()
+    b_sum = cubes[temperature]['shadows'][2].sum()
 
-    print(curr_cubes[temp]['midtones'])
-    '''curr_cubes[temp]['shadows'][:, 0] += red_mult
-    curr_cubes[temp]['midtones'][:, 0] += red_mult
-    curr_cubes[temp]['lights'][:, 0] += red_mult
+    new_red = mod[0] + cubes[temperature]['shadows'][0]
+    new_green = mod[1] + cubes[temperature]['shadows'][1]
+    new_blue = mod[2] + cubes[temperature]['shadows'][2]
 
-    curr_cubes[temp]['shadows'][:, 1] += green_mult
-    curr_cubes[temp]['midtones'][:, 1] += green_mult
-    curr_cubes[temp]['lights'][:, 1] += green_mult
+    new_matrix = np.array([new_red * r_sum / new_red.sum(),
+                           new_green * g_sum / new_green.sum(),
+                           new_blue * b_sum / new_blue.sum()])
 
-    curr_cubes[temp]['shadows'][:, 2] += blue_mult
-    curr_cubes[temp]['midtones'][:, 2] += blue_mult
-    curr_cubes[temp]['lights'][:, 2] += blue_mult'''
+    cubes[temperature]['shadows'] = new_matrix
 
-    if '--nophone' not in argv:
-        save_cubes_to_phone(curr_cubes, True)
+    # Midtones
+    r_sum = cubes[temperature]['midtones'][0].sum()
+    g_sum = cubes[temperature]['midtones'][1].sum()
+    b_sum = cubes[temperature]['midtones'][2].sum()
+
+    new_red = mod[0] + cubes[temperature]['midtones'][0]
+    new_green = mod[1] + cubes[temperature]['midtones'][1]
+    new_blue = mod[2] + cubes[temperature]['midtones'][2]
+
+    new_matrix = np.array([new_red * r_sum / new_red.sum(),
+                           new_green * g_sum / new_green.sum(),
+                           new_blue * b_sum / new_blue.sum()])
+
+    cubes[temperature]['midtones'] = new_matrix
+
+    # print(temperature, '\r\n', normalize_matrix(cubes[temperature]['lights']))
+
+    # Lights
+    r_sum = cubes[temperature]['lights'][0].sum()
+    g_sum = cubes[temperature]['lights'][1].sum()
+    b_sum = cubes[temperature]['lights'][2].sum()
+
+    new_red = mod[0] + cubes[temperature]['lights'][0]
+    new_green = mod[1] + cubes[temperature]['lights'][1]
+    new_blue = mod[2] + cubes[temperature]['lights'][2]
+
+    new_matrix = np.array([new_red * r_sum / new_red.sum(),
+                           new_green * g_sum / new_green.sum(),
+                           new_blue * b_sum / new_blue.sum()])
+
+    cubes[temperature]['lights'] = new_matrix
+
+    if '--nophone' not in argv and '--gcam' not in argv:
+        save_cubes_to_phone(cubes, True)
+    else:
+        print('Текущая матрица:\r\n', normalize_matrix(cubes[temperature]['midtones']))
+        save_cubes_to_local_file(cubes)
+    # show_result()
+    
     if '--noinputs' not in argv:
         once_more = input('Хотите еще раз проверить и уточнить калибровку? y/n: ')
     else:
         once_more = 'n'
 
     if once_more.lower() == 'y':
-        check_calibration(temp=temp)
+        check_calibration(cubes, np_sample_was=np_sample, np_etalon_was=np_etalon, temp=temp)
 
 
 def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({})):
@@ -821,7 +883,7 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
                     cubes[temperature]['shadows'] *= np_etalon[5] / np_sample[5]
                     cubes[temperature]['midtones'] *= np_etalon[3] / np_sample[3]'''
 
-                if '--nophone' not in argv:
+                if '--nophone' not in argv and '--gcam' not in argv:
                     save_cubes_to_phone(cubes, True, temperature)
                 if i == number_of_times - 1:
                     after_wb = col1  # Backuping colors after wb correction
@@ -1058,15 +1120,18 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
             cubes[temperature]['shadows'] = making_matrix('shadows')
 
             # Midtones
-            cubes[temperature]['midtones'] = making_matrix('midtones', debug=True)
+            cubes[temperature]['midtones'] = making_matrix('midtones')
 
             # Lights
             cubes[temperature]['lights'] = making_matrix('lights')
+
             # Step 2. Trying to enhance results. Normalizing saturation and trying to get better color balance
 
-            '''print(np_sample[9:12])
-            np_sample[9:12] = apply_matrix(np_sample[9:12], cubes[temperature]['midtones'])
-            print(np_sample[9:12])'''
+            if '--debug' in argv:
+                print('Expected 9-11 colors:\r\n', exp[9:12])
+                print('Matrix after 1st step:\r\n', normalize_matrix(cubes[temperature]['midtones']))
+                debug_values = apply_matrix(np_sample[9:12], cubes[temperature]['midtones'])
+                print('With current matrix  after 1st step applied:\r\n', debug_values.astype('int'))
 
             mod = find_matrix_changer(np_etalon[9:12], np_sample[9:12])
 
@@ -1102,7 +1167,7 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
 
             cubes[temperature]['midtones'] = new_matrix
 
-            print(temperature, '\r\n', normalize_matrix(cubes[temperature]['lights']))
+            # print(temperature, '\r\n', normalize_matrix(cubes[temperature]['lights']))
 
             # Lights
             r_sum = cubes[temperature]['lights'][0].sum()
@@ -1119,32 +1184,12 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
 
             cubes[temperature]['lights'] = new_matrix
 
+            if '--debug' in argv:
+                print('Expected 9-11 colors:\r\n', exp[9:12])
+                print('Matrix after 2nd step:\r\n', normalize_matrix(cubes[temperature]['midtones']))
+                debug_values = apply_matrix(np_sample[9:12], cubes[temperature]['midtones'])
+                print('With current matrix after 2nd step applied:\r\n', debug_values.astype('int'))
 
-            # Doing blue more natural
-            var = ('count = 0\n'
-                   '        matrix = cubes[temperature][\'lights\'].copy()\n'
-                   '\n'
-                   '        mod = np.abs(apply_matrix([np_sample[6]], cubes[temperature][\'midtones\']).astype(\'int\') - np.array(exp[6])).sum()\n'
-                   '        while mod > 90:\n'
-                   '            cubes[temperature][\'shadows\'][0, 2] -= 0.05\n'
-                   '            cubes[temperature][\'shadows\'][0, 0] += 0.05\n'
-                   '            cubes[temperature][\'shadows\'] = normalize_matrix(cubes[temperature][\'shadows\'])\n'
-                   '\n'
-                   '            cubes[temperature][\'midtones\'][0, 2] -= 0.05\n'
-                   '            cubes[temperature][\'midtones\'][0, 0] += 0.05\n'
-                   '            cubes[temperature][\'midtones\'] = normalize_matrix(cubes[temperature][\'midtones\'])\n'
-                   '\n'
-                   '            cubes[temperature][\'lights\'][0, 2] -= 0.05\n'
-                   '            cubes[temperature][\'lights\'][0, 0] += 0.05\n'
-                   '            cubes[temperature][\'lights\'] = normalize_matrix(cubes[temperature][\'lights\'])\n'
-                   '\n'
-                   '            mod = np.abs(apply_matrix([np_sample[6]], cubes[temperature][\'midtones\']).astype(\'int\') - np.array(exp[6])).sum()\n'
-                   '            count += 1\n'
-                   '            if count == 20:\n'
-                   '                break')
-
-            '''if '--nophone' not in argv:
-                save_cubes_to_phone(cubes, True, temperature)'''
         if number_of_times > 1 and n < number_of_times - 1:
             cubes_arr.append(cubes)
     if number_of_times > 1:
@@ -1155,9 +1200,11 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
         cubes[temperature]['shadows'] /= number_of_times
         cubes[temperature]['midtones'] /= number_of_times
         cubes[temperature]['lights'] /= number_of_times
-    print('Калибровка завершена, удачной фотоохоты!')
 
-    if '--nophone' not in argv:
+    print('Калибровка завершена, удачной фотоохоты!')
+    show_result()
+
+    if '--nophone' not in argv and '--gcam' not in argv:
         if '--cube' not in argv:
             if len(backup) > 0:
                 backup[temperature] = cubes[temperature]
@@ -1172,11 +1219,15 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
         else:
             save_cubes_to_local_file(cubes, True, temperature)
 
+    if '--noinputs' not in argv:
+        if input('Проверить/уточнить калибровку? y/n: ').lower() == 'y':
+            check_calibration(cubes, np_sample_was=np_sample, np_etalon_was=np_etalon)
+
 
 backup_cubes = {}
 
 if '--onlycheck' not in argv:
-    if '--from0' not in argv:
+    '''if '--from0' not in argv:
         if '--nophone' not in argv:
             get_cct_matrix_file_from_phone()
         if '--fromprevcalib' in argv:
@@ -1184,27 +1235,24 @@ if '--onlycheck' not in argv:
         else:
             cct_cubes = parse_cct_matrix_from_file()
         backup_cubes = cct_cubes.copy()
-    else:
-        if '--nophone' not in argv and '--gcam' not in argv:
-            if '--backupcct' in argv:
-                get_cct_matrix_file_from_phone()
-                backup_cubes = parse_cct_matrix_from_file()
-                # print(backup_cubes)
-                save_cubes_to_local_file(backup_cubes, filename='CCTbackup.txt')
-                # exit()
-        cct_cubes = parse_cct_matrix_from_file('customCCT_all1.txt')
-        if '--nophone' not in argv:
-            save_cubes_to_phone(cct_cubes, True)
+    else:'''
+    if '--nophone' not in argv and '--gcam' not in argv:
+        if '--backupcct' in argv:
+            get_cct_matrix_file_from_phone()
+            backup_cubes = parse_cct_matrix_from_file()
+            # print(backup_cubes)
+            save_cubes_to_local_file(backup_cubes, filename='CCTbackup.txt')
+            # exit()
+    cct_cubes = parse_cct_matrix_from_file('customCCT_all1.txt')
+    if '--nophone' not in argv and '--gcam' not in argv:
+        save_cubes_to_phone(cct_cubes, True)
 
-    if '--cube' in argv:
-        do_the_calibration(cct_cubes, 1, 'warm', backup_cubes)
+    if '--cool' in argv:
+        do_the_calibration(cct_cubes, 1, 'cool', backup_cubes)
     else:
-        if '--cool' in argv:
-            do_the_calibration(cct_cubes, 1, 'cool', backup_cubes)
-        else:
-            do_the_calibration(cct_cubes, 1, 'warm', backup_cubes)
-if '--noinputs' not in argv:
-    if input('Проверить/уточнить калибровку? y/n: ').lower() == 'y':
-        check_calibration()
+        do_the_calibration(cct_cubes, 1, 'warm', backup_cubes)
+else:
+    check_calibration(parse_cct_matrix_from_file('customCCT_autoCubes.txt'))
+show_result()
 
 # save_cubes_to_local_file(cct_cubes)
