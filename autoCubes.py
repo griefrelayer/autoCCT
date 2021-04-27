@@ -23,8 +23,6 @@ if '--xrite' in argv:
 x_multipliers = [0.157, 0.366, 0.572, 0.786]
 y_multipliers = [0.114, 0.267, 0.4275, 0.583, 0.735, 0.884]
 
-pipetka = 30
-
 spydercheckr24_colors = [[249, 242, 238], [202, 198, 195], [161, 157, 154], [122, 118, 116], [80, 80, 78], [43, 41, 43],
                          [0, 127, 159], [192, 75, 145], [245, 205, 0], [186, 26, 51], [57, 146, 64], [25, 55, 135],
                          [222, 118, 32], [58, 88, 159], [195, 79, 95], [83, 58, 106], [157, 188, 54], [238, 158, 25],
@@ -52,15 +50,6 @@ def adb_command(command):
         print('Процесс adb превысил время ожидания и был закрыт. Попробуем еще раз')
         response = adb_command(command)
     return response
-
-
-def unwarp(img, src, dst):
-    h, w = img.shape[:2]
-    # use cv2.getPerspectiveTransform() to get M, the transform matrix, and Minv, the inverse
-    M = cv2.getPerspectiveTransform(src, dst)
-    # use cv2.warpPerspective() to warp your image to a top-down view
-    warped = cv2.warpPerspective(img, M, (w, h), flags=cv2.INTER_LINEAR)
-    return warped
 
 
 def start_photoncamera():
@@ -142,13 +131,13 @@ def wait_for_new_photo(folder, local=False):
     exit()
 
 
-def get_average_color(img, point, pixel_square=pipetka):
+def get_average_color(img, point, pixel_square=200):
     r_sum = 0
     g_sum = 0
     b_sum = 0
     for i in range(pixel_square):
         for j in range(pixel_square):
-            pixel = img.getpixel((point[0] + i, point[1] + j))
+            pixel = img.getpixel((point[0] + i - pixel_square/2, point[1] + j - pixel_square/2))
             r_sum += pixel[0]
             g_sum += pixel[1]
             b_sum += pixel[2]
@@ -163,7 +152,7 @@ def opencv_show_image(points, img):
         img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
 
     for p in points:
-        cv2.rectangle(img, p, (p[0]+pipetka, p[1]+pipetka), (0, 0, 0), 3)
+        cv2.rectangle(img, (p[0]-100, p[1]-100), (p[0]+100, p[1]+100), (0, 0, 0), 3)
     resized = cv2.resize(img, (600, 800))
     if '--showpoints' in argv:
         cv2.imshow('points', resized)
@@ -273,7 +262,7 @@ def opencv_find_etalon(image_filename):
     # img_transf[:, :, 0] = cv2.equalizeHist(img_transf[:, :, 0])
     img4 = cv2.cvtColor(img_transf, cv2.COLOR_YUV2BGR)'''
     gray = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
-    edges = cv2.Canny(gray, 100, 150, apertureSize=3)
+
     thresh = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)[1]
 
     if '--showpoints' in argv:
@@ -302,13 +291,8 @@ def opencv_find_etalon(image_filename):
     cnts3 = cv2.findContours(thresh3.copy(), cv2.RETR_TREE,
                              cv2.CHAIN_APPROX_SIMPLE)
 
-    cnts4 = cv2.findContours(edges.copy(), cv2.RETR_TREE,
-                             cv2.CHAIN_APPROX_SIMPLE)
-
     cnts += imutils.grab_contours(cnts2)
     cnts += imutils.grab_contours(cnts3)
-    cnts += imutils.grab_contours(cnts4)
-
     # print(len(cnts))
     sd = ShapeDetector()
 
@@ -477,7 +461,7 @@ def combine_matrices(matrices, pix_sum):
     # return matrices['shadows'] + (matrices['midtones'] - matrices['shadows']) / 382 * pix_sum if pix_sum < 383 else \
     #       matrices['midtones'] + (matrices['lights'] - matrices['midtones']) / 383 * (pix_sum - 383)
 
-
+EPS = 0.0000001
 def find_matrix_from_points(before, after, c_sum):  # Most fun function
     a = before[0][0]
     b = before[0][1]
@@ -495,10 +479,10 @@ def find_matrix_from_points(before, after, c_sum):  # Most fun function
                     (e - b) * (d - a - e + b) * a + (d - a) * (e - b - d + a) * b) - n * (
                              -(d - a - e + b) * a - (e - b - d + a) * b)) / \
                 (-(e - b - f + c) * (d - a - e + b) * a - (d - a - f + c) * (e - b - d + a) * b + (d - a - e + b) * (
-                            e - b - d + a) * c)
-        mult2 = (c_sum * (d - a) - mult3 * (d - a - f + c) - n) / (d - a - e + b)
+                            e - b - d + a) * c + EPS)
+        mult2 = (c_sum * (d - a) - mult3 * (d - a - f + c) - n) / (d - a - e + b + EPS)
 
-        mult1 = (c_sum * (e - b) - mult3 * (e - b - f + c) - n) / (e - b - d + a)
+        mult1 = (c_sum * (e - b) - mult3 * (e - b - f + c) - n) / (e - b - d + a + EPS)
     except RuntimeWarning:
         print('Что-то не то в множителях. Справлюсь, не переживай!)')
         return 0, 0, 0
