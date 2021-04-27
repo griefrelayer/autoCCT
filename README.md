@@ -1,11 +1,48 @@
 # autoCCT
 This script makes CCT matrix using x-rite or spydercheckr 24 colorcheckers to correct camera colors.
-To install requirements, use the command:
-  
-  **pip install -r requirements.txt**
   
 # Инструкция
+
+Чтобы использовать этот скрипт, вам понадобятся **python** не менее версии 3.6.0 и **pip**
+
+Перейдите по ссылке https://www.python.org/downloads/  чтобы скачать и установить Python
+
+Далее используйте командную строку, чтобы установить pip:
+
+  **curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py**
+
+  **python get-pip.py**
+
+Установите зависимости:
+  
+  **pip install -r requirements.txt**
+
+Запускайте скрипт командой:
+  
+  **python autoCubes.py**
+  
+Добавляйте ключи через пробел после, при необходимости. Например:
+
+  **python autoCubes.py --gcam**
+  
+  или
+  
+  **python autoCubes.py --nophone --debug --showpoints --nowb**
+  
+  
 Перед началом калибровки убедитесь, что вы снимаете мишень в необходимых условиях баланса белого.
+
+Подключите телефон через adb (приложено) и авторизуйте его, если это не было сделано ранее, чтобы автоматически загружать фото из телефона.
+
+Если при запуске происходит ошибка, связанная с adb и вы уверены, что телефон подключен, проверьте, не запущен ли уже adb и завершите его в диспетчере задач. 
+
+Или используйте ключ **--nophone** чтобы использовать локальное фото. По умолчанию локальное фото ищется в папке, где лежит скрипт и по названию last_photo.jpg
+
+Если вы хотите указать другой файл, можно отправить имя файла скрипту, например 
+  
+  **python autoCubes.py --nophone some_photo.jpg**
+
+(Если вы калибруете по фото без телефона, то не получится использовать уточнение матрицы, потому что для этого нужно сделать снимок с рассчетной матрицей)
 
 Если вы будете использовать одну матрицу(gcam), снимайте в условиях нейтрального освещения
 (дневной свет, лампа дневного света)
@@ -45,8 +82,26 @@ Br: 0  Bg: 0  Bb: 1
 
     
 # Instructions
+
+To use this script you will need working **python > 3.6.0** and **pip** installed
+
+https://www.python.org/downloads/  to download and install python (latest will do)
+
+then use command line:
+
+**curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py**
+
+**python get-pip.py**
+
+To install requirements, use the command:
+  
+  **pip install -r requirements.txt**
+  
+  
 Before you start calibration, make sure that you shoot the color checker at the necessary white balance conditions.
+
 If you use one matrix (GCAM), remove in neutral lighting conditions
+
 (daylight, daylight lamp)
 
 Remove the color target so that the white color checker square is on the left.
