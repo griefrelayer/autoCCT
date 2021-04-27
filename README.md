@@ -34,7 +34,7 @@ This script makes CCT matrix using x-rite or spydercheckr 24 colorcheckers to co
 
 Подключите телефон через adb (приложено) и авторизуйте его, если это не было сделано ранее, чтобы автоматически загружать фото из телефона. 
 
-Или используйте ключ **--nophone** чтобы использовать локальное фото. По умолчанию локальное фото ищется в папке, откуда запущен скрипт(!не где лежит, а откуда запущен!) и по названию last_photo.jpg
+Или используйте ключ **--nophone** чтобы использовать локальное фото. По умолчанию локальное фото ищется в папке, где лежит скрипт и по названию last_photo.jpg
 
 Если вы хотите указать другой файл, можно отправить имя файла скрипту, например 
   
@@ -82,9 +82,13 @@ Br: 0  Bg: 0  Bb: 1
 # Instructions
 
 To use this script you will need working **python > 3.6.0** and **pip** installed
+
 https://www.python.org/downloads/  to download and install python (latest will do)
+
 then use command line:
+
 **curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py**
+
 **python get-pip.py**
 
 To install requirements, use the command:
@@ -93,7 +97,9 @@ To install requirements, use the command:
   
   
 Before you start calibration, make sure that you shoot the color checker at the necessary white balance conditions.
+
 If you use one matrix (GCAM), remove in neutral lighting conditions
+
 (daylight, daylight lamp)
 
 Remove the color target so that the white color checker square is on the left.
