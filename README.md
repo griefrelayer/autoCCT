@@ -17,6 +17,19 @@ This script makes CCT matrix using x-rite or spydercheckr 24 colorcheckers to co
   
   **pip install -r requirements.txt**
 
+Запускайте скрипт командой:
+  
+  **python autoCubes.py**
+  
+Добавляйте ключи через пробел после, при необходимости. Например:
+
+  **python autoCubes.py --gcam**
+  
+  или
+  
+  **python autoCubes.py --nophone --debug --showpoints --nowb**
+  
+  
 Перед началом калибровки убедитесь, что вы снимаете мишень в необходимых условиях баланса белого.
 
 Подключите телефон через adb (приложено) и авторизуйте его, если это не было сделано ранее, чтобы автоматически загружать фото из телефона. 
