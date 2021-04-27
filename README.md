@@ -4,6 +4,7 @@ This script makes CCT matrix using x-rite or spydercheckr 24 colorcheckers to co
 # Инструкция
 
 Чтобы использовать этот скрипт, вам понадобятся **python** не менее версии 3.6.0 и **pip**
+
 Перейдите по ссылке https://www.python.org/downloads/  чтобы скачать и установить Python
 
 Далее используйте командную строку:
