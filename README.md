@@ -41,7 +41,7 @@ Rr: 1  Rg: 0  Rb: 0
 
 Gr: 0  Gg: 1  Gb: 0
 
-Br: 0  Bg: 0  Bb: 0
+Br: 0  Bg: 0  Bb: 1
 
     
 # Instructions
@@ -79,4 +79,4 @@ RR: 1 RG: 0 RB: 0
 
 GR: 0 GG: 1 GB: 0
 
-Br: 0 BG: 0 BB: 0
+Br: 0 BG: 0 BB: 1
