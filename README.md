@@ -4,50 +4,79 @@ To install requirements, use the command:
   
   **pip install -r requirements.txt**
   
-Connect and authorise phone to adb to automatically get new photos or use **--nophone** to get colorchecker photo locally (save it to last_photo.jpg in the folder from you're starting script)
+# Инструкция
+Перед началом калибровки убедитесь, что вы снимаете мишень в необходимых условиях баланса белого.
 
-Normally with adb connected phone you should use script like that:
+Если вы будете использовать одну матрицу(gcam), снимайте в условиях нейтрального освещения
+(дневной свет, лампа дневного света)
 
-  **python autoCubes.py --from0 --matrix**
- 
- or
-  
-  **python autoCubes.py --from0 --gcam --matrix**
-  for gcam
-  
-After that the script will save customCCT.txt to PhotonCamera folder and will save it locally to customCCT_autoCubes.txt
-There's also different keys, that i'll explain later.
+Снимайте цветовую мишень так, чтобы белый квадратик мишени был слева.
 
-# Русский
-Этот скрипт делает CCT матрицу с помощью цветовой мишени spydercheckr 24 или аналогичной мишени x-rite.
-Для начала проверьте, установлен ли у вас python версии не ниже 3.6 с помощью команды
+При этом не важно, горизонтально или вертикально.
 
-  **python -V**
+Для Gcam добавьте ключ **--gcam**
 
-Затем установите необходимые библиотеки с помощью команды
+Для использования с чекером x-rite  добавьте ключ **--xrite**
 
-  **pip install -r requirements.txt**
+Если калибруете две матрицы/кубы для теплой или холодной температур, по умолчанию калибруется теплая матрица.
 
-Подключите телефон через adb (приложено) и авторизуйте его, если это не было сделано ранее, чтобы автоматически загружать фото из телефона или используйте ключ **--nophone** чтобы использовать локальное фото. По умолчанию локальное фото ищется в папке, откуда запущен скрипт(!не где лежит, а откуда запущен!) и по названию last_photo.jpg
-Если вы хотите указать другой файл, можно отправить имя файла скрипту, например **python autoCubes.py --from0 --nophone some_photo.jpg**
+Для калибровки холодной добавьте ключ **--cool**
 
-В обычном случае с телефоном, подключенным по adb, используйте скрипт так:
+Для двух матриц добавьте **--matrixes**
 
-  **python autoCubes.py --from0 --matrix --gcam**
-  
-для gcam
-  
-или
+(правильно matrices, но у некоторых талантливых разрабов проблемы с английским)
 
-  **python autoCubes.py --from0 --matrixes**
-  
-  для PhotonCamera
-  
-Если вы хотите использовать цветовую мишень x-rite, добавьте ключ **--xrite**
+Для куба добавьте **--cube**
 
-  **python autoCubes.py --from0 --matrix --gcam --xrite**
- 
-  Если калибруете две матрицы для использования в PhotonCamera, по умолчанию калибруется теплая матрица(для теплого света). Если вы хотите калибровать холодную матрицу, добавьте ключ **--cool**
-  
-  Если вы не уверены в результатах, можно проверить, хорошо ли считались точки с эталона с помощью ключа **--showpoints**
-По окончании калибровки скрипт предложит вам уточнить калибровку. Вы можете сначала сделать несколько фото и проверить, требуется ли это.
+Для кубов **--cubes**
+
+
+Если вы снимаете на PhotonCamera и телефон подключен по adb, 
+то при калибровке автоматически выставится матрица для калибровки.
+
+Если вы снимаете на Gcam с функцией cct, 
+перед калибровкой отключите настройки цвета и выставьте матрицу следующим образом:
+
+Rr: 1  Rg: 0  Rb: 0
+
+Gr: 0  Gg: 1  Gb: 0
+
+Br: 0  Bg: 0  Bb: 0
+
+    
+# Instructions
+Before you start calibration, make sure that you shoot the color checker at the necessary white balance conditions.
+If you use one matrix (GCAM), remove in neutral lighting conditions
+(daylight, daylight lamp)
+
+Remove the color target so that the white color checker square is on the left.
+
+It does not matter, horizontally or vertically.
+
+For GCAM, add the key **--gcam**
+
+To use with X-Rite Checker, add the **--xrite** key.
+
+If you calibrate two matrices / cubes for warm or cold temperatures, a warm matrix is calibrated by default.
+
+For Cold Calibration Add key **--cool**
+
+For two matrices add **--matrixes**
+
+For cube add **--cube**
+
+For cubes **--cubes**
+
+If you shoot on PhotonCamera and the phone is connected to ADB,
+
+The calibration matrix is automatically adjusting during calibration.
+
+If you are shooting on GCAM with a CCT function,
+
+Turn off the color settings before calibrating and set the matrix in settings as follows:
+
+RR: 1 RG: 0 RB: 0
+
+GR: 0 GG: 1 GB: 0
+
+Br: 0 BG: 0 BB: 0
