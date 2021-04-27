@@ -1,4 +1,4 @@
-from PIL import Image, ImageEnhance, ImageOps
+from PIL import Image
 import subprocess
 import time
 import re
@@ -153,9 +153,10 @@ def opencv_show_image(points, img):
     for p in points:
         cv2.rectangle(img, p, (p[0]+30, p[1]+30), (0, 0, 0), 3)
     resized = cv2.resize(img, (600, 800))
-    cv2.imshow('points', resized)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    if '--debug' in argv:
+        cv2.imshow('points', resized)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
     pass
 
 
@@ -175,6 +176,8 @@ def opencv_find_etalon(image_filename):
         img = Image.open(os.path.join(__location__, image_filename))
     except FileNotFoundError:
         print('Не могу найти файл фото!')
+        exit()
+        return
     pil_image = img.convert('RGB')
     open_cv_image = np.array(pil_image)
     img = open_cv_image[:, :, ::-1].copy()
@@ -182,20 +185,22 @@ def opencv_find_etalon(image_filename):
     if img.shape[0] < img.shape[1]:
         img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
     resized = cv2.resize(img, (600, 800))
-    ratio = img.shape[0] / float(resized.shape[0])
+    # ratio = img.shape[0] / float(resized.shape[0])
     blurred = cv2.GaussianBlur(resized, (9, 9), 0)
     img_transf = cv2.cvtColor(blurred, cv2.COLOR_BGR2YUV)
     img_transf[:, :, 0] = cv2.equalizeHist(img_transf[:, :, 0])
     img4 = cv2.cvtColor(img_transf, cv2.COLOR_YUV2BGR)
     gray = cv2.cvtColor(img4, cv2.COLOR_BGR2GRAY)
 
-    thresh = cv2.threshold(gray, 150, 200, cv2.THRESH_BINARY)[1]
-    cv2.imshow('thresh', thresh)
-    cv2.waitKey(0)
+    thresh = cv2.threshold(gray, 80, 200, cv2.THRESH_BINARY)[1]
+    if '--debug' in argv:
+        cv2.imshow('thresh', thresh)
+        cv2.waitKey(0)
 
     # Lines
     edges = cv2.Canny(gray, 80, 230, apertureSize=3)
-    cv2.imshow('edges', edges)
+    if '--debug' in argv:
+        cv2.imshow('edges', edges)
     lines = cv2.HoughLines(edges, 1, np.pi / 75, 60)
 
     def angle(p1, p2):
@@ -206,6 +211,11 @@ def opencv_find_etalon(image_filename):
         rads = math.atan2(-dY, dX)  # wrong for finding angle/declination?
         return math.degrees(rads)
 
+    min_x = 600
+    min_y = 800
+    max_x = 0
+    max_y = 0
+
     angles = []
     for line in lines:
         rho, theta = line[0]
@@ -214,27 +224,34 @@ def opencv_find_etalon(image_filename):
         x0 = a * rho
         y0 = b * rho
         # x1 stores the rounded off value of (r * cos(theta) - 1000 * sin(theta))
-        x1 = int(x0 + 800 * (-b))
+        x1 = int(x0 + 800 * -b)
         # y1 stores the rounded off value of (r * sin(theta)+ 1000 * cos(theta))
-        y1 = int(y0 + 800 * (a))
+        y1 = int(y0 + 800 * a)
         # x2 stores the rounded off value of (r * cos(theta)+ 1000 * sin(theta))
-        x2 = int(x0 - 800 * (-b))
+        x2 = int(x0 - 800 * -b)
         # y2 stores the rounded off value of (r * sin(theta)- 1000 * cos(theta))
-        y2 = int(y0 - 800 * (a))
+        y2 = int(y0 - 800 * a)
+
+        if x1 < min_x and x2 < min_x:
+            min_x = x2 - x1
+
         angles.append(angle((x1, y1), (x2, y2)))
         if 45 < abs(angle((x1, y1), (x2, y2))) < 135:
             cv2.line(resized, (x1, y1), (x2, y2), (0, 0, 255), 2)
-
-    cv2.imshow('Lines', resized)
-    cv2.waitKey(0)
+    if '--debug' in argv:
+        cv2.imshow('Lines', resized)
+        cv2.waitKey(0)
     angles = np.array(angles)
+
     vertical = np.absolute(angles[np.argwhere(np.bitwise_and(np.absolute(angles) > 45, np.absolute(angles) < 135))])
     horisontal = np.absolute(angles[np.argwhere(np.bitwise_or(np.absolute(angles) < 45, np.absolute(angles) > 135))])
-    print('Vertical: \r\n', vertical.sum() / len(vertical), '\r\nHorisontal: \r\n', horisontal.sum() / len(horisontal))
-    print('Degrees to rotate: ', round((90 - vertical.sum() / len(vertical) + horisontal.sum() / len(horisontal)) / 2))
+
+    if '--debug' in argv:
+        print('Vertical: \r\n', vertical.sum() / len(vertical), '\r\nHorisontal: \r\n', horisontal.sum() / len(horisontal))
+        print('Degrees to rotate: ', round((90 - vertical.sum() / len(vertical) + horisontal.sum() / len(horisontal)) / 2))
     # find contours in the thresholded image and initialize the
     # shape detector
-    rotated = rotate_bound(img,  -round(((90 - vertical.sum() / len(vertical) + horisontal.sum() / len(horisontal))) / 2))
+    rotated = rotate_bound(img,  -round((90 - vertical.sum() / len(vertical) + horisontal.sum() / len(horisontal)) / 2))
     resized = cv2.resize(rotated, (600, 800))
     ratio = rotated.shape[0] / float(resized.shape[0])
     blurred = cv2.GaussianBlur(resized, (9, 9), 0)
@@ -243,17 +260,18 @@ def opencv_find_etalon(image_filename):
     img4 = cv2.cvtColor(img_transf, cv2.COLOR_YUV2BGR)
     gray = cv2.cvtColor(img4, cv2.COLOR_BGR2GRAY)
 
-    thresh = cv2.threshold(gray, 150, 250, cv2.THRESH_BINARY)[1]
+    thresh = cv2.threshold(gray, 80, 230, cv2.THRESH_BINARY)[1]
+
+    if '--debug' in argv:
+        cv2.imshow('thresh', thresh)
+        cv2.waitKey(0)
 
     cnts = cv2.findContours(thresh.copy(), cv2.RETR_TREE,
                             cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
     # print(len(cnts))
     sd = ShapeDetector()
-    min_x = 600
-    min_y = 800
-    max_x = 0
-    max_y = 0
+
     # print(cnts)
     for c in cnts:
         # compute the center of the contour, then detect the name of the
@@ -287,16 +305,13 @@ def opencv_find_etalon(image_filename):
                 c = c.astype("int")
 
                 cv2.drawContours(resized, [c], -1, (0, 255, 0), 2)
-                # cv2.putText(resized, shape + ' ' + str(x) + ',' + str(y) + ' w=' + str(w), (cX, cY), cv2.FONT_HERSHEY_SIMPLEX,
-                #    0.5, (255, 255, 255), 2)
+
         # show the output image
     max_min = tuple((np.array([min_x, min_y, max_x, max_y]) * ratio).astype('int'))
-
-    cv2.imshow("Image", resized)
-    cv2.waitKey(0)
-
-
-    cv2.destroyAllWindows()
+    if '--debug' in argv:
+        cv2.imshow("Image", resized)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
     if '--debug' in argv:
         print("Cropped area: ", max_min)
         print('Rotated shape', rotated.shape)
@@ -484,7 +499,9 @@ def parse_cct_matrix_from_file(filename='customCCT.txt'):  # making cubes dict w
         with open(os.path.join(__location__, filename)) as fp:
             file_contents = fp.readlines()
 
-    except:
+    except FileNotFoundError:
+        print('Не могу открыть файл :( То-ли его нет, то-ли доступ запрещен...')
+    except PermissionError:
         print('Не могу открыть файл :( То-ли его нет, то-ли доступ запрещен...')
     finally:
         if not file_contents:
@@ -706,19 +723,19 @@ def save_cubes_to_local_file(cubes: dict, custom_format=False, temp='warm', file
         matrix_to_text(normalize_matrix(cubes['warm']['midtones']))}\n\n{
         c_p}\n{
         matrix_to_text(normalize_matrix(cubes['cool']['midtones']))}\n\n"""
-    elif not custom_format or '--gcam' in argv:   # Matrix
-        file_text = f"""MATRIX\n\n{matrix_to_text(normalize_matrix(cubes['warm']['midtones']))}"""
-    else:
+    elif '--cube' in argv:
         file_text = f"""CUBE\n\n{matrix_to_text(normalize_matrix(cubes[temp]['shadows']))}\n\n{
         matrix_to_text(normalize_matrix(cubes[temp]['midtones']))}\n\n{
         matrix_to_text(normalize_matrix(cubes[temp]['lights']))}"""
+    else:   # Matrix
+        file_text = f"""MATRIX\n\n{matrix_to_text(normalize_matrix(cubes['warm']['midtones']))}"""
     if '--debug' in argv:
         print("В телефон будет записана матрица: \r\n", file_text)
 
     try:
         with open(os.path.join(__location__, filename), 'w') as fp:
             fp.write(file_text)
-    except:
+    except PermissionError:
         print('Не могу записать в файл...')
 
 
@@ -726,13 +743,16 @@ def save_cubes_to_phone(cubes, single_cube=False, temp='warm'):
     save_cubes_to_local_file(cubes, single_cube, temp)
     adb_command('push customCCT_autoCubes.txt /storage/self/primary/DCIM/PhotonCamera/customCCT.txt')
     print('Сохранено на телефоне. Проверяйте калибровку.')
+    show_result()
 
 
 def help_message():
     text = """
     Перед началом калибровки убедитесь, что вы снимаете мишень в необходимых условиях баланса белого.
-    Если вы будете использовать одну матрицу(gcam), снимайте в условиях нейтрального освещения(дневной свет, лампа дневного света)
-    Снимайте цветовую мишень так, чтобы белый квадратик мишени был слева. При этом не важно, горизонтально или вертикально.
+    Если вы будете использовать одну матрицу(gcam), снимайте в условиях нейтрального освещения
+    (дневной свет, лампа дневного света)
+    Снимайте цветовую мишень так, чтобы белый квадратик мишени был слева. 
+    При этом не важно, горизонтально или вертикально.
     Для Gcam добавьте ключ --gcam.
     Для использования с чекером x-rite  добавьте ключ --xrite.
     Если калибруете две матрицы/кубы для теплой или холодной температур, по умолчанию калибруется теплая матрица.
@@ -742,8 +762,10 @@ def help_message():
     Для куба добавьте --cube
     Для кубов --cubes
     
-    Если вы снимаете на PhotonCamera и телефон подключен по adb, то при калибровке автоматически выставится матрица для калибровки.
-    Если вы снимаете на Gcam с функцией cct, перед калибровкой отключите настройки цвета и выставьте матрицу следующим образом:
+    Если вы снимаете на PhotonCamera и телефон подключен по adb, 
+    то при калибровке автоматически выставится матрица для калибровки.
+    Если вы снимаете на Gcam с функцией cct, 
+    перед калибровкой отключите настройки цвета и выставьте матрицу следующим образом:
     Rr: 1  Rg: 0  Rb: 0
     Gr: 0  Gg: 1  Gb: 0
     Br: 0  Bg: 0  Bb: 0
@@ -751,7 +773,7 @@ def help_message():
     return text
 
 
-def check_calibration(cubes, temp='warm', np_sample_was=np.array([]), np_etalon_was=np.array([])):
+def check_calibration(cubes, temp='warm', np_sample_was=np.array([]), np_etalon_was=np.array([]), backup=dict({})):
     print('Проверим калибровку.\r\n')
     time.sleep(1)
     print('Сделайте снимок цветового эталона.')
@@ -768,17 +790,333 @@ def check_calibration(cubes, temp='warm', np_sample_was=np.array([]), np_etalon_
 
     if '--debug' in argv:
         print('Was:\r\n', np_sample_was[9:12])
-        print('Computed with matrix correction:\r\n', apply_matrix(np_sample_was[9:12], normalize_matrix(cubes[temp]['midtones'])).astype('int'))
+        print('Computed with matrix correction:\r\n',
+              apply_matrix(np_sample_was[9:12], normalize_matrix(cubes[temp]['midtones'])).astype('int'))
         print('Real correction:\r\n', np_sample[9:12])
-        print(apply_matrix(np_sample_was[9:12], normalize_matrix(cubes[temp]['midtones'])).astype('int') - np_sample[9:12])
+        print(apply_matrix(np_sample_was[9:12],
+                           normalize_matrix(cubes[temp]['midtones'])).astype('int') - np_sample[9:12])
     # print(col1)
     # print(spydercheckr24_colors)
     # shadows = np.argwhere(np_sample.sum(axis=1) < 256)
-    cubes = parse_cct_matrix_from_file('customCCT_autoCubes.txt')
+    cubes_was = parse_cct_matrix_from_file('customCCT_autoCubes.txt')
     # print(shadows)
     temperature = temp
 
+    print('Улучшим калибровку.')
+    for i in range(1):  # Colors fixing
 
+        # Initializing expected colors via checker colors comparison
+        def init_exp_by_levels():
+            exp = [[0, 0, 0] for k in range(24)]
+            if checker == 'spydercheckr24':
+                # Red
+                exp[9][0] = round(
+                    ((np_sample[1][0] - np_sample[2][0]) / 2 + np_sample[2][0]) * 1.025)  # Derived from etalon
+                gb_sum_exp = np_sample[4][0]
+                b_div_g_exp = 1.96
+                exp[9][2] = round(b_div_g_exp * gb_sum_exp / (b_div_g_exp + 1))
+                exp[9][1] = round(np_sample[5][1] * 0.634)
+                # More red
+                exp[14][0] = np_sample[1][2]
+                exp[14][1] = round((np_sample[5][1] + np_sample[5][2]) / 2)
+                exp[14][2] = round(np_sample[4][1] * 1.1875)
+                # Even more red
+                exp[8][0] = round(np_sample[0][0] * 0.984)
+                exp[8][1] = round(np_sample[1][1] * 1.035)
+                exp[8][2] = np_sample[5][2] - 43
+                if exp[8][2] < 0:
+                    exp[8][2] = 0
+                exp[7][0] = round(np_sample[1][0] * 0.95)
+                exp[7][1] = round(np_sample[4][1] * 0.9375)
+                exp[7][2] = round(np_sample[2][2] * 0.941)
+
+                # Green
+                exp[10][1] = round(
+                    ((np_sample[2][1] - np_sample[3][1]) / 2 + np_sample[3][1]) * 1.06)  # Derived from etalon
+                rb_sum_exp = np_sample[3][1]
+                b_div_r_exp = 1.123
+                exp[10][2] = round(rb_sum_exp * b_div_r_exp / (b_div_r_exp + 1))
+                exp[10][0] = round(np_sample[5][0] * 1.326)
+                # More green
+                exp[16][0] = np_sample[2][1]
+                exp[16][2] = round(np_sample[2][0] / 3)
+                exp[16][1] = round(0.96 * np_sample[1][2])
+                exp[20][0] = round(np_sample[4][0] * 1.025)
+                exp[20][1] = round(np_sample[3][1] * 0.899)
+                exp[20][2] = round(((np_sample[4][2] - np_sample[5][2]) / 2) + np_sample[5][2])
+
+                # Blue
+                exp[11][2] = round(((np_sample[2][2] - np_sample[3][2]) / 2) + np_sample[3][2])
+                rg_sum_exp = np_sample[4][2]
+                g_div_r_exp = 2.2
+                exp[11][0] = round(np_sample[5][0] * 0.581)
+                # exp[11][1] = rg_sum_exp - exp[11][0]
+                exp[11][1] = round(1.341 * np_sample[5][1])
+                # More blue
+                exp[6][0] = np_sample[5][0] - 43
+                if exp[6][0] < 0:
+                    exp[6][0] = 0
+                exp[6][1] = round(np_sample[3][1] * 1.076)
+                exp[6][2] = round(np_sample[2][2] * 1.032467532)
+
+            elif checker == 'x-rite':
+                exp[9][0] = round(
+                    ((np_sample[1][0] - np_sample[2][0]) / 2 + np_sample[2][0]) * 0.97222222)
+                gb_sum_exp = round(np_sample[3][0] * 0.9344262295081968)
+                b_div_g_exp = 1.1111111111111112
+                exp[9][2] = round(b_div_g_exp * gb_sum_exp / (b_div_g_exp + 1))
+                exp[9][1] = round(np_sample[5][1] * 1.0384615384615385)
+                # More red
+                exp[14][0] = round(np_sample[1][2] * 0.965)
+                exp[14][1] = round(np_sample[4][1] * 1.0588235294117647)
+                exp[14][2] = round(np_sample[4][2] * 1.1647058823529413)
+                # Even more red
+                exp[8][0] = round(np_sample[0][0] * 0.9506172839506173)
+                exp[8][1] = round(np_sample[1][1] * 0.995)
+                exp[8][2] = round(np_sample[5][2] * 0.5961538461538461)
+
+                exp[7][0] = round(np_sample[1][0] * 0.935)
+                exp[7][1] = round(np_sample[4][1] * 1.011764705882353)
+                exp[7][2] = round(np_sample[2][2] * 0.93125)
+
+                # Green
+                exp[10][1] = round(np_sample[2][1] * 0.925)  # Derived from etalon colors
+                rb_sum_exp = round(((np_sample[2][1] - np_sample[3][1]) / 2 + np_sample[3][1]) * 1.0141843971631206)
+                b_div_r_exp = 1.042857142857143
+                exp[10][2] = round(rb_sum_exp * b_div_r_exp / (b_div_r_exp + 1))
+                exp[10][0] = round(np_sample[5][0] * 1.3461538461538463)
+                # More green
+                exp[16][0] = round(np_sample[2][1] * 0.98125)
+                exp[16][2] = round(np_sample[5][2] * 1.2307692307692308)
+                exp[16][1] = round(0.94 * np_sample[1][2])
+
+                exp[20][0] = round(np_sample[4][0] * 1.0235294117647058)
+                exp[20][1] = round(np_sample[3][1] * 0.9836065573770492)
+                exp[20][2] = round(np_sample[2][2] * 0.9836065573770492)
+
+                # Blue
+                exp[11][2] = round(np_sample[2][2] * 0.9375)  # Derived from etalon colors
+                exp[11][0] = round(np_sample[5][0] * 1.0769230769230769)
+                exp[11][1] = round(1.1730769230769231 * np_sample[5][1])
+                # More blue
+                exp[6][0] = round(np_sample[5][0] / 6.5)
+                exp[6][1] = round(np_sample[3][1] * 1.0901639344262295)
+                exp[6][2] = round(np_sample[2][2] * 1.00625)
+
+            return exp
+
+        def init_exp_by_etalon():
+            exp = (np_etalon - np.sum(np_etalon, axis=1)[:, None] / 3 + np.sum(np_sample, axis=1)[:, None] / 3).astype(
+                'int')
+            return exp
+
+        exp = init_exp_by_levels()
+
+        # exp = init_exp_by_etalon().tolist()
+
+        def making_matrix(grade, debug=False):
+            # Getting rows of the matrix
+            matrix_R = []
+            matrix_G = []
+            matrix_B = []
+
+            s = np_sample_was
+
+            r_sum = np.sum(cubes[temperature][grade][0])
+            g_sum = np.sum(cubes[temperature][grade][1])
+            b_sum = np.sum(cubes[temperature][grade][2])
+            c_sums = (r_sum, g_sum, b_sum)
+            matrices = (matrix_R, matrix_G, matrix_B)
+            exp_copy = exp.copy()
+            # print(exp_copy)
+            m = 0
+            n = 0
+            for o in range(3):
+                for m in range(len(exp_copy)):
+                    for n in range(m + 1, len(exp_copy)):
+                        if exp_copy[m] != [0, 0, 0]:
+                            res = find_matrix_from_points([s[m], s[n]], [exp_copy[m][o], exp_copy[n][o]], c_sums[o])
+                            if min(res) < -2.5 or max(res) > 2.5:
+                                continue
+                            else:
+                                matrices[o].append(res)
+
+            '''matrix_R.append(find_matrix_from_points([s[8], s[7]], [exp[8][0], exp[7][0]], r_sum))
+            matrix_R.append(find_matrix_from_points([s[7], np_sample[5]], [exp[7][0], np_sample[5][0]], r_sum))
+            matrix_R.append(find_matrix_from_points([s[7], s[16]], [exp[7][0], exp[16][0]], r_sum))
+            # matrix_R.append(find_matrix_from_points([s[8], np_sample[5]], [exp[8][0], np_sample[5][0]], r_sum))
+            matrix_R.append(find_matrix_from_points([s[16], s[11]], [exp[16][0], exp[11][0]], r_sum))
+            matrix_R.append(find_matrix_from_points([s[11], s[6]], [exp[11][0], exp[6][0]], r_sum))
+            #matrix_R.append(find_matrix_from_points([s[8], s[16]], [exp[8][0], exp[16][0]], r_sum))
+            # matrix_R.append(find_matrix_from_points([s[6], s[16]], [exp[6][0], exp[16][0]], r_sum))
+
+            matrix_G.append(find_matrix_from_points(s[9:11], [exp[9][1], exp[10][1]], g_sum))
+            # matrix_G.append(find_matrix_from_points([s[16], s[10]], [exp[16][1], exp[10][1]], g_sum))
+            matrix_G.append(find_matrix_from_points([s[8], s[7]], [exp[8][1], exp[7][1]], g_sum))
+            matrix_G.append(find_matrix_from_points([s[9], s[16]], [exp[9][1], exp[16][1]], g_sum))
+            matrix_G.append(find_matrix_from_points([s[9], s[7]], [exp[9][1], exp[7][1]], g_sum))
+            # matrix_G.append(find_matrix_from_points([s[8], s[6]], [exp[8][1], exp[6][1]], g_sum))
+            matrix_G.append(find_matrix_from_points([s[16], s[6]], [exp[16][1], exp[6][1]], g_sum))
+            matrix_G.append(find_matrix_from_points([s[10], s[6]], [exp[10][1], exp[6][1]], g_sum))
+
+            matrix_B.append(find_matrix_from_points([s[10], s[9]], [exp[10][2], exp[9][2]], b_sum))
+            matrix_B.append(find_matrix_from_points([s[16], s[9]], [exp[16][2], exp[9][2]], b_sum))
+            matrix_B.append(find_matrix_from_points([s[16], s[10]], [exp[16][2], exp[10][2]], b_sum))
+            matrix_B.append(find_matrix_from_points([s[6], s[10]], [exp[6][2], exp[10][2]], b_sum))
+            matrix_B.append(find_matrix_from_points([s[6], s[9]], [exp[6][2], exp[9][2]], b_sum))
+            matrix_B.append(find_matrix_from_points([s[6], s[7]], [exp[6][2], exp[7][2]], b_sum))
+            matrix_B.append(find_matrix_from_points([s[6], s[16]], [exp[6][2], exp[16][2]], b_sum))
+            matrix_B.append(find_matrix_from_points([s[8], s[10]], [exp[8][2], exp[10][2]], b_sum))
+            matrix_B.append(find_matrix_from_points([s[8], s[7]], [exp[8][2], exp[7][2]], b_sum))'''
+
+            matrix_R = np.array(matrix_R)
+            matrix_G = np.array(matrix_G)
+            matrix_B = np.array(matrix_B)
+
+            matrix_R = np.delete(matrix_R, np.argwhere(matrix_R[:, 0] < 0), axis=0)
+            matrix_G = np.delete(matrix_G, np.argwhere(matrix_G[:, 1] < 0), axis=0)
+            matrix_B = np.delete(matrix_B, np.argwhere(matrix_B[:, 2] < 0), axis=0)
+
+            matrix_R = matrix_R[np.logical_not(np.isnan(matrix_R).any(axis=1))]
+            matrix_G = matrix_G[np.logical_not(np.isnan(matrix_G).any(axis=1))]
+            matrix_B = matrix_B[np.logical_not(np.isnan(matrix_B).any(axis=1))]
+
+            '''matrix_R = np.delete(matrix_R, np.argwhere(matrix_R[:, 0] < 0.9), 0)
+            matrix_R = np.delete(matrix_R, np.argwhere(np.absolute(matrix_R[:, 1]) > 1), 0)
+            matrix_R = np.delete(matrix_R, np.argwhere(np.absolute(matrix_R[:, 2]) > 1), 0)
+
+            matrix_G = np.delete(matrix_G, np.argwhere(matrix_G[:, 1] < 0.9), 0)
+            matrix_G = np.delete(matrix_G, np.argwhere(np.absolute(matrix_G[:, 0]) > 1), 0)
+            matrix_G = np.delete(matrix_G, np.argwhere(np.absolute(matrix_G[:, 2]) > 1), 0)
+
+            matrix_B = np.delete(matrix_B, np.argwhere(matrix_B[:, 2] < 0.9), 0)
+            matrix_B = np.delete(matrix_B, np.argwhere(np.absolute(matrix_B[:, 1]) > 1), 0)
+            matrix_B = np.delete(matrix_B, np.argwhere(np.absolute(matrix_B[:, 0]) > 1), 0)'''
+
+            '''if checker == 'spydercheckr24':
+                matrix_R = np.delete(matrix_R,
+                                     [5, 7, 14, 15, 17, 19, 25, 29, 30, 31, 32,
+                                      34, 36, 38, 42, 45, 47, 49, 51, 52, 53], 0)
+                matrix_G = np.delete(matrix_G,
+                                     [5, 6, 13, 14, 15, 17, 19, 20, 24, 29, 30,
+                                      31, 33, 36, 37, 38, 39, 41, 43, 44, 45, 46,
+                                      49, 50, 51, 52, 53, 55, 56, 57], 0)
+                matrix_B = np.delete(matrix_B,
+                                     [5, 8, 14, 21, 24, 25, 27, 30, 33, 36, 40,
+                                      41, 42, 45, 46, 49, 51, 52, 54, 55, 56, 57], 0)
+            elif checker == 'x-rite':
+                matrix_R = np.delete(matrix_R,
+                                     [2, 5, 6, 7, 12, 14, 15, 18, 19, 20, 23,
+                                      26, 30, 31, 32, 33, 35, 38, 43, 44, 45, 46, 48, 50], 0)
+                matrix_G = np.delete(matrix_G,
+                                     [2, 5, 6, 8, 13, 14, 16, 18, 19, 20,
+                                      21, 24, 27, 30, 31, 32, 34, 36, 37,
+                                      40, 41, 42, 43, 44, 47, 48, 50, 51, 52, 53], 0)
+                matrix_B = np.delete(matrix_B,
+                                     [5, 8, 13, 16, 20, 23, 24, 27, 28, 30,
+                                      32, 35, 36, 37, 40, 41, 42, 44, 45, 46, 47], 0)'''
+
+            matrix = np.array(
+                [matrix_R.sum(axis=0) / len(matrix_R), matrix_G.sum(axis=0) / len(matrix_G),
+                 matrix_B.sum(axis=0) / len(matrix_B)]
+            )
+
+            '''if checker == 'x-rite':
+                matrix -= np.array([[0.07383913, -0.01645874, -0.0573804],
+                                    [-0.12457132,  0.2080515,  -0.08348018],
+                                    [-0.07460538, -0.04046158,  0.10687024]])
+            elif checker == 'spydercheckr24':
+                matrix -= np.array([[0.08126999,  0.03904493, -0.12031491],
+                                    [-0.15891245,  0.16444426, -0.0055318],
+                                    [-0.123535,    0.02758223,  0.10464843]])
+            '''
+            if debug:
+                print(np.around(np.array(matrix - np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])), 8))
+                print(grade.title(), '\r\n')
+                # print('R:\r\n', matrix_R, '\r\nG:\r\n', matrix_G, '\r\nB:\r\n', matrix_B)
+                print('Matrix:\r\n', np.around(normalize_matrix(matrix), 2), '\r\nMatrix sum:', matrix.sum())
+                # print('Etalon colors:\r\n', np.array(spydercheckr24_colors[6:9]))
+                print('From sample:\r\n', np_sample[6:12])
+                print('Expected colors:\r\n', exp[6:12])
+                # print('Applied matrix:\r\n', apply_matrix(np_sample[6:9], matrix).astype('int'))
+            # print(red_exp, green_exp, blue_exp)
+            return matrix
+
+        # Shadows
+        cubes[temperature]['shadows'] = making_matrix('shadows')
+
+        # Midtones
+        cubes[temperature]['midtones'] = making_matrix('midtones')
+
+        # Lights
+        cubes[temperature]['lights'] = making_matrix('lights')
+
+        # Step 2. Trying to enhance results. Normalizing saturation and trying to get better color balance
+
+        if '--debug' in argv:
+            print('Sample colors 9-11:\r\n', np_sample_was[9:12])
+            print('Expected 9-11 colors:\r\n', exp[9:12])
+            print('Matrix after 1st step:\r\n', normalize_matrix(cubes[temperature]['midtones']))
+            debug_values = apply_matrix(np_sample_was[9:12], cubes[temperature]['midtones'])
+            print('With current matrix  after 1st step applied:\r\n', debug_values.astype('int'))
+
+        if '--gcam' in argv:
+            r = 30
+        else:
+            r = 5
+        for x in range(r):
+            mod = find_matrix_changer(np_etalon[9:12],
+                                      apply_matrix(np_sample_was[9:12], normalize_matrix(cubes[temperature]['midtones'])))
+            # mod = find_matrix_changer(np_etalon[9:12], np_sample[9:12])
+
+            # print(cubes[temperature]['midtones'], '\r\n', mod)
+
+            # Shadows
+            r_sum = cubes[temperature]['shadows'][0].sum()
+            g_sum = cubes[temperature]['shadows'][1].sum()
+            b_sum = cubes[temperature]['shadows'][2].sum()
+
+            new_red = mod[0] + cubes[temperature]['shadows'][0]
+            new_green = mod[1] + cubes[temperature]['shadows'][1]
+            new_blue = mod[2] + cubes[temperature]['shadows'][2]
+
+            new_matrix = np.array([new_red * r_sum / new_red.sum(),
+                                   new_green * g_sum / new_green.sum(),
+                                   new_blue * b_sum / new_blue.sum()])
+
+            cubes[temperature]['shadows'] = new_matrix
+
+            # Midtones
+            r_sum = cubes[temperature]['midtones'][0].sum()
+            g_sum = cubes[temperature]['midtones'][1].sum()
+            b_sum = cubes[temperature]['midtones'][2].sum()
+
+            new_red = mod[0] + cubes[temperature]['midtones'][0]
+            new_green = mod[1] + cubes[temperature]['midtones'][1]
+            new_blue = mod[2] + cubes[temperature]['midtones'][2]
+
+            new_matrix = np.array([new_red * r_sum / new_red.sum(),
+                                   new_green * g_sum / new_green.sum(),
+                                   new_blue * b_sum / new_blue.sum()])
+
+            cubes[temperature]['midtones'] = new_matrix
+
+            # print(temperature, '\r\n', normalize_matrix(cubes[temperature]['lights']))
+
+            # Lights
+            r_sum = cubes[temperature]['lights'][0].sum()
+            g_sum = cubes[temperature]['lights'][1].sum()
+            b_sum = cubes[temperature]['lights'][2].sum()
+
+            new_red = mod[0] + cubes[temperature]['lights'][0]
+            new_green = mod[1] + cubes[temperature]['lights'][1]
+            new_blue = mod[2] + cubes[temperature]['lights'][2]
+
+            new_matrix = np.array([new_red * r_sum / new_red.sum(),
+                                   new_green * g_sum / new_green.sum(),
+                                   new_blue * b_sum / new_blue.sum()])
+
+            cubes[temperature]['lights'] = new_matrix
 
     if '--nophone' not in argv and '--gcam' not in argv:
         save_cubes_to_phone(cubes, True)
@@ -793,7 +1131,22 @@ def check_calibration(cubes, temp='warm', np_sample_was=np.array([]), np_etalon_
         once_more = 'n'
 
     if once_more.lower() == 'y':
-        check_calibration(cubes, np_sample_was=np_sample, np_etalon_was=np_etalon, temp=temp)
+        check_calibration(cubes, np_sample_was=np_sample_was, np_etalon_was=np_etalon, temp=temp, backup=backup)
+
+    if '--nophone' not in argv and '--gcam' not in argv:
+        if '--cube' not in argv:
+            if len(backup) > 0:
+                backup[temperature] = cubes[temperature]
+                save_cubes_to_phone(backup, False, temperature)
+            else:
+                save_cubes_to_phone(cubes, False, temperature)
+        else:
+            save_cubes_to_phone(cubes, True, temperature)
+    else:
+        if '--cube' not in argv:
+            save_cubes_to_local_file(cubes, False, temperature)
+        else:
+            save_cubes_to_local_file(cubes, True, temperature)
 
 
 def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({})):
@@ -822,7 +1175,7 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
 
     col1 = get_colors_from_test_photo()
 
-    if (checker == 'x-rite'):
+    if checker == 'x-rite':
         col1 = col1[0:6] + col1[11:5:-1] + col1[12:18] + col1[23:17:-1]
         np_etalon = np.array(xrite_remodeled)
     else:
@@ -836,7 +1189,6 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
 
                 # print(col1)
                 # col2 = get_etalon_colors()
-
 
                 # Finding contrast level
                 '''contrast_level = np.sum(np_sample[0] - np_sample[5])
@@ -895,7 +1247,7 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
                 if checker == 'spydercheckr24':
                     # Red
                     exp[9][0] = round(
-                        ((np_sample[1][0] - np_sample[2][0]) / 2 + np_sample[2][0]) * 1.025)  # Derived from etalon colors
+                        ((np_sample[1][0] - np_sample[2][0]) / 2 + np_sample[2][0]) * 1.025)  # Derived from etalon
                     gb_sum_exp = np_sample[4][0]
                     b_div_g_exp = 1.96
                     exp[9][2] = round(b_div_g_exp * gb_sum_exp / (b_div_g_exp + 1))
@@ -916,7 +1268,7 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
 
                     # Green
                     exp[10][1] = round(
-                        ((np_sample[2][1] - np_sample[3][1]) / 2 + np_sample[3][1]) * 1.06)  # Derived from etalon colors
+                        ((np_sample[2][1] - np_sample[3][1]) / 2 + np_sample[3][1]) * 1.06)  # Derived from etalon
                     rb_sum_exp = np_sample[3][1]
                     b_div_r_exp = 1.123
                     exp[10][2] = round(rb_sum_exp * b_div_r_exp / (b_div_r_exp + 1))
@@ -930,7 +1282,7 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
                     exp[20][2] = round(((np_sample[4][2] - np_sample[5][2]) / 2) + np_sample[5][2])
 
                     # Blue
-                    exp[11][2] = round(((np_sample[2][2] - np_sample[3][2]) / 2) + np_sample[3][2])  # Derived from etalon colors
+                    exp[11][2] = round(((np_sample[2][2] - np_sample[3][2]) / 2) + np_sample[3][2])
                     rg_sum_exp = np_sample[4][2]
                     g_div_r_exp = 2.2
                     exp[11][0] = round(np_sample[5][0] * 0.581)
@@ -1010,7 +1362,7 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
                 c_sums = (r_sum, g_sum, b_sum)
                 matrices = (matrix_R, matrix_G, matrix_B)
                 exp_copy = exp.copy()
-                print(exp_copy)
+                # print(exp_copy)
                 m = 0
                 n = 0
                 for o in range(3):
@@ -1141,7 +1493,12 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
                 print('Matrix after 1st step:\r\n', normalize_matrix(cubes[temperature]['midtones']))
                 debug_values = apply_matrix(np_sample[9:12], cubes[temperature]['midtones'])
                 print('With current matrix  after 1st step applied:\r\n', debug_values.astype('int'))
-            for x in range(30):
+
+            if '--gcam' in argv:
+                r = 30
+            else:
+                r = 5
+            for x in range(r):
                 mod = find_matrix_changer(np_etalon[9:12],
                                           apply_matrix(np_sample[9:12], normalize_matrix(cubes[temperature]['midtones'])))
                 # mod = find_matrix_changer(np_etalon[9:12], np_sample[9:12])
@@ -1253,7 +1610,7 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
 
     if '--noinputs' not in argv:
         if input('Проверить/уточнить калибровку? y/n: ').lower() == 'y':
-            check_calibration(cubes, np_sample_was=np_sample, np_etalon_was=np_etalon)
+            check_calibration(cubes, np_sample_was=np_sample, np_etalon_was=np_etalon, backup=backup)
 
 
 backup_cubes = {}
@@ -1284,7 +1641,7 @@ if '--onlycheck' not in argv:
     else:
         do_the_calibration(cct_cubes, 1, 'warm', backup_cubes)
 else:
-    check_calibration(parse_cct_matrix_from_file('customCCT_autoCubes.txt'))
+    check_calibration(parse_cct_matrix_from_file('customCCT_autoCubes.txt'), backup=parse_cct_matrix_from_file('CCTbackup.txt'))
 show_result()
 
 # save_cubes_to_local_file(cct_cubes)
