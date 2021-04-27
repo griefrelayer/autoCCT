@@ -288,7 +288,9 @@ def opencv_find_etalon(image_filename):
         cv2.imshow('thresh3', thresh3)
         cv2.waitKey(0)
 
-    cnts3 = cv2.findContours(thresh3.copy(), cv2.RETR_TREE,
+    edges = cv2.Canny(gray, 100, 150, apertureSize=3)
+
+    cnts3 = cv2.findContours(edges.copy(), cv2.RETR_TREE,
                              cv2.CHAIN_APPROX_SIMPLE)
 
     cnts += imutils.grab_contours(cnts2)
