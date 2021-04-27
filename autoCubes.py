@@ -248,7 +248,11 @@ def opencv_find_etalon(image_filename):
         print('Degrees to rotate: ', round((90 - vertical.sum() / len(vertical) + horisontal.sum() / len(horisontal)) / 2))
     # find contours in the thresholded image and initialize the
     # shape detector
-    rotated = rotate_bound(img,  round((90 - vertical.sum() / len(vertical) + horisontal.sum() / len(horisontal)) / 2))
+    degrees = round((90 - vertical.sum() / len(vertical) + horisontal.sum() / len(horisontal)) / 2)
+    if abs(degrees) > 2:
+        rotated = rotate_bound(img,  degrees)
+    else:
+        rotated = img
     resized = cv2.resize(rotated, (600, 800))
     x_ratio = rotated.shape[1] / float(resized.shape[1])
     y_ratio = rotated.shape[0] / float(resized.shape[0])
