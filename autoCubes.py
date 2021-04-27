@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from PIL import Image
 import subprocess
 import time
@@ -1087,7 +1088,7 @@ def check_calibration(cubes, temp='warm', np_sample_was=np.array([]), np_etalon_
         if '--gcam' in argv:
             r = 30
         else:
-            r = 5
+            r = 20
         for x in range(r):
             mod = find_matrix_changer(np_etalon[9:12],
                                       apply_matrix(np_sample_was[9:12], normalize_matrix(cubes[temperature]['midtones'])))
@@ -1521,7 +1522,7 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
             if '--gcam' in argv:
                 r = 30
             else:
-                r = 5
+                r = 20
             for x in range(r):
                 mod = find_matrix_changer(np_etalon[9:12],
                                           apply_matrix(np_sample[9:12], normalize_matrix(cubes[temperature]['midtones'])))
