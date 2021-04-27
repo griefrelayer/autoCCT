@@ -153,7 +153,7 @@ def opencv_show_image(points, img):
     for p in points:
         cv2.rectangle(img, p, (p[0]+30, p[1]+30), (0, 0, 0), 3)
     resized = cv2.resize(img, (600, 800))
-    if '--debug' in argv:
+    if '--showpoints' in argv:
         cv2.imshow('points', resized)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
@@ -188,18 +188,18 @@ def opencv_find_etalon(image_filename):
     # ratio = img.shape[0] / float(resized.shape[0])
     blurred = cv2.GaussianBlur(resized, (9, 9), 0)
     img_transf = cv2.cvtColor(blurred, cv2.COLOR_BGR2YUV)
-    img_transf[:, :, 0] = cv2.equalizeHist(img_transf[:, :, 0])
+    # img_transf[:, :, 0] = cv2.equalizeHist(img_transf[:, :, 0])
     img4 = cv2.cvtColor(img_transf, cv2.COLOR_YUV2BGR)
     gray = cv2.cvtColor(img4, cv2.COLOR_BGR2GRAY)
 
     thresh = cv2.threshold(gray, 80, 200, cv2.THRESH_BINARY)[1]
-    if '--debug' in argv:
+    if '--showpoints' in argv:
         cv2.imshow('thresh', thresh)
         cv2.waitKey(0)
 
     # Lines
-    edges = cv2.Canny(gray, 80, 230, apertureSize=3)
-    if '--debug' in argv:
+    edges = cv2.Canny(gray, 100, 150, apertureSize=3)
+    if '--showpoints' in argv:
         cv2.imshow('edges', edges)
     lines = cv2.HoughLines(edges, 1, np.pi / 75, 60)
 
@@ -232,13 +232,10 @@ def opencv_find_etalon(image_filename):
         # y2 stores the rounded off value of (r * sin(theta)- 1000 * cos(theta))
         y2 = int(y0 - 800 * a)
 
-        if x1 < min_x and x2 < min_x:
-            min_x = x2 - x1
-
         angles.append(angle((x1, y1), (x2, y2)))
         if 45 < abs(angle((x1, y1), (x2, y2))) < 135:
             cv2.line(resized, (x1, y1), (x2, y2), (0, 0, 255), 2)
-    if '--debug' in argv:
+    if '--showpoints' in argv:
         cv2.imshow('Lines', resized)
         cv2.waitKey(0)
     angles = np.array(angles)
@@ -251,24 +248,46 @@ def opencv_find_etalon(image_filename):
         print('Degrees to rotate: ', round((90 - vertical.sum() / len(vertical) + horisontal.sum() / len(horisontal)) / 2))
     # find contours in the thresholded image and initialize the
     # shape detector
-    rotated = rotate_bound(img,  -round((90 - vertical.sum() / len(vertical) + horisontal.sum() / len(horisontal)) / 2))
+    rotated = rotate_bound(img,  round((90 - vertical.sum() / len(vertical) + horisontal.sum() / len(horisontal)) / 2))
     resized = cv2.resize(rotated, (600, 800))
-    ratio = rotated.shape[0] / float(resized.shape[0])
+    x_ratio = rotated.shape[1] / float(resized.shape[1])
+    y_ratio = rotated.shape[0] / float(resized.shape[0])
     blurred = cv2.GaussianBlur(resized, (9, 9), 0)
     img_transf = cv2.cvtColor(blurred, cv2.COLOR_BGR2YUV)
-    img_transf[:, :, 0] = cv2.equalizeHist(img_transf[:, :, 0])
+    # img_transf[:, :, 0] = cv2.equalizeHist(img_transf[:, :, 0])
     img4 = cv2.cvtColor(img_transf, cv2.COLOR_YUV2BGR)
     gray = cv2.cvtColor(img4, cv2.COLOR_BGR2GRAY)
 
-    thresh = cv2.threshold(gray, 80, 230, cv2.THRESH_BINARY)[1]
+    thresh = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)[1]
 
-    if '--debug' in argv:
+    if '--showpoints' in argv:
         cv2.imshow('thresh', thresh)
         cv2.waitKey(0)
 
     cnts = cv2.findContours(thresh.copy(), cv2.RETR_TREE,
                             cv2.CHAIN_APPROX_SIMPLE)
     cnts = imutils.grab_contours(cnts)
+
+    thresh2 = cv2.threshold(gray, 100, 200, cv2.THRESH_BINARY)[1]
+
+    if '--showpoints' in argv:
+        cv2.imshow('thresh2', thresh2)
+        cv2.waitKey(0)
+
+    cnts2 = cv2.findContours(thresh2.copy(), cv2.RETR_TREE,
+                            cv2.CHAIN_APPROX_SIMPLE)
+
+    thresh3 = cv2.threshold(gray, 0, 100, cv2.THRESH_BINARY)[1]
+
+    if '--showpoints' in argv:
+        cv2.imshow('thresh3', thresh3)
+        cv2.waitKey(0)
+
+    cnts3 = cv2.findContours(thresh3.copy(), cv2.RETR_TREE,
+                             cv2.CHAIN_APPROX_SIMPLE)
+
+    cnts += imutils.grab_contours(cnts2)
+    cnts += imutils.grab_contours(cnts3)
     # print(len(cnts))
     sd = ShapeDetector()
 
@@ -307,8 +326,9 @@ def opencv_find_etalon(image_filename):
                 cv2.drawContours(resized, [c], -1, (0, 255, 0), 2)
 
         # show the output image
-    max_min = tuple((np.array([min_x, min_y, max_x, max_y]) * ratio).astype('int'))
-    if '--debug' in argv:
+    max_min = tuple((np.array([min_x*x_ratio, min_y*y_ratio, max_x*x_ratio, max_y*y_ratio])).astype('int'))
+    cv2.rectangle(resized, (min_x, min_y), (max_x, max_y), (0, 255, 0), 3)
+    if '--showpoints' in argv:
         cv2.imshow("Image", resized)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
