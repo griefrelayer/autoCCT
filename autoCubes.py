@@ -253,10 +253,10 @@ def opencv_find_etalon(image_filename):
     x_ratio = rotated.shape[1] / float(resized.shape[1])
     y_ratio = rotated.shape[0] / float(resized.shape[0])
     blurred = cv2.GaussianBlur(resized, (9, 9), 0)
-    img_transf = cv2.cvtColor(blurred, cv2.COLOR_BGR2YUV)
+    '''img_transf = cv2.cvtColor(blurred, cv2.COLOR_BGR2YUV)
     # img_transf[:, :, 0] = cv2.equalizeHist(img_transf[:, :, 0])
-    img4 = cv2.cvtColor(img_transf, cv2.COLOR_YUV2BGR)
-    gray = cv2.cvtColor(img4, cv2.COLOR_BGR2GRAY)
+    img4 = cv2.cvtColor(img_transf, cv2.COLOR_YUV2BGR)'''
+    gray = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
 
     thresh = cv2.threshold(gray, 200, 255, cv2.THRESH_BINARY)[1]
 
