@@ -20,6 +20,8 @@ camera_folder = '/storage/self/primary/DCIM/Camera'
 checker = 'spydercheckr24'
 if '--xrite' in argv:
     checker = 'x-rite'
+
+pipetka = 200
 x_multipliers = [0.157, 0.366, 0.572, 0.786]
 y_multipliers = [0.114, 0.267, 0.4275, 0.583, 0.735, 0.884]
 
@@ -131,19 +133,19 @@ def wait_for_new_photo(folder, local=False):
     exit()
 
 
-def get_average_color(img, point, pixel_square=200):
+def get_average_color(img, point, pixel_square=pipetka):
     r_sum = 0
     g_sum = 0
     b_sum = 0
     for i in range(pixel_square):
         for j in range(pixel_square):
-            pixel = img.getpixel((point[0] + i - pixel_square/2, point[1] + j - pixel_square/2))
+            pixel = img.getpixel((point[0] + i - int(pixel_square/2), point[1] + j - int(pixel_square/2)))
             r_sum += pixel[0]
             g_sum += pixel[1]
             b_sum += pixel[2]
-    r_avg = int(r_sum / pixel_square ** 2)
-    g_avg = int(g_sum / pixel_square ** 2)
-    b_avg = int(b_sum / pixel_square ** 2)
+    r_avg = int(r_sum / (pixel_square**2))
+    g_avg = int(g_sum / (pixel_square**2))
+    b_avg = int(b_sum / (pixel_square**2))
     return r_avg, g_avg, b_avg
 
 
@@ -152,7 +154,7 @@ def opencv_show_image(points, img):
         img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
 
     for p in points:
-        cv2.rectangle(img, (p[0]-100, p[1]-100), (p[0]+100, p[1]+100), (0, 0, 0), 3)
+        cv2.rectangle(img, (p[0]-int(pipetka/2), p[1]-int(pipetka/2)), (p[0]+int(pipetka/2), p[1]+int(pipetka/2)), (0, 0, 0), 3)
     resized = cv2.resize(img, (600, 800))
     if '--showpoints' in argv:
         cv2.imshow('points', resized)
@@ -163,6 +165,7 @@ def opencv_show_image(points, img):
 
 def get_photo_colors(img, points_list):
     average_colors = [get_average_color(img, point) for point in points_list]
+    # print(average_colors)
     return average_colors
 
 
@@ -1088,14 +1091,15 @@ def check_calibration(cubes, temp='warm', np_sample_was=np.array([]), np_etalon_
             print('With current matrix  after 1st step applied:\r\n', debug_values.astype('int'))
 
         if '--gcam' in argv:
-            r = 30
+            r = 1
         else:
-            r = 20
-        for x in range(r):
-            mod = find_matrix_changer(np_etalon[9:12],
-                                      apply_matrix(np_sample_was[9:12], normalize_matrix(cubes[temperature]['midtones'])))
-            # mod = find_matrix_changer(np_etalon[9:12], np_sample[9:12])
+            r = 1
 
+        applied_matrix_colors = apply_matrix(np_sample_was[9:12], normalize_matrix(cubes[temperature]['midtones']))
+        for x in range(r):
+            mod = find_matrix_changer(np_etalon[9:12], applied_matrix_colors)
+            # mod = find_matrix_changer(np_etalon[9:12], np_sample[9:12])
+            print(applied_matrix_colors)
             # print(cubes[temperature]['midtones'], '\r\n', mod)
 
             # Shadows
@@ -1144,6 +1148,8 @@ def check_calibration(cubes, temp='warm', np_sample_was=np.array([]), np_etalon_
                                    new_blue * b_sum / new_blue.sum()])
 
             cubes[temperature]['lights'] = new_matrix
+
+            applied_matrix_colors = apply_matrix(np_sample_was[9:12], normalize_matrix(cubes[temperature]['midtones']))
 
     if '--nophone' not in argv and '--gcam' not in argv:
         save_cubes_to_phone(cubes, True)
@@ -1522,14 +1528,14 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
                 print('With current matrix  after 1st step applied:\r\n', debug_values.astype('int'))
 
             if '--gcam' in argv:
-                r = 30
+                r = 1
             else:
-                r = 20
+                r = 1
+            applied_matrix_colors = apply_matrix(np_sample[9:12], normalize_matrix(cubes[temperature]['midtones']))
             for x in range(r):
-                mod = find_matrix_changer(np_etalon[9:12],
-                                          apply_matrix(np_sample[9:12], normalize_matrix(cubes[temperature]['midtones'])))
+                mod = find_matrix_changer(np_etalon[9:12], applied_matrix_colors)
                 # mod = find_matrix_changer(np_etalon[9:12], np_sample[9:12])
-
+                print(mod)
                 # print(cubes[temperature]['midtones'], '\r\n', mod)
 
                 # Shadows
@@ -1578,6 +1584,8 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
                                        new_blue * b_sum / new_blue.sum()])
 
                 cubes[temperature]['lights'] = new_matrix
+                applied_matrix_colors = apply_matrix(np_sample[9:12],
+                                                     normalize_matrix(cubes[temperature]['midtones']))
 
         if number_of_times > 1 and n < number_of_times - 1:
             cubes_arr.append(cubes)
