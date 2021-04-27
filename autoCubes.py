@@ -131,13 +131,13 @@ def wait_for_new_photo(folder, local=False):
     exit()
 
 
-def get_average_color(img, point, pixel_square=30):
+def get_average_color(img, point, pixel_square=200):
     r_sum = 0
     g_sum = 0
     b_sum = 0
     for i in range(pixel_square):
         for j in range(pixel_square):
-            pixel = img.getpixel((point[0] + i, point[1] + j))
+            pixel = img.getpixel((point[0] + i - pixel_square/2, point[1] + j - pixel_square/2))
             r_sum += pixel[0]
             g_sum += pixel[1]
             b_sum += pixel[2]
@@ -152,7 +152,7 @@ def opencv_show_image(points, img):
         img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
 
     for p in points:
-        cv2.rectangle(img, p, (p[0]+30, p[1]+30), (0, 0, 0), 3)
+        cv2.rectangle(img, (p[0]-100, p[1]-100), (p[0]+100, p[1]+100), (0, 0, 0), 3)
     resized = cv2.resize(img, (600, 800))
     if '--showpoints' in argv:
         cv2.imshow('points', resized)
@@ -461,7 +461,7 @@ def combine_matrices(matrices, pix_sum):
     # return matrices['shadows'] + (matrices['midtones'] - matrices['shadows']) / 382 * pix_sum if pix_sum < 383 else \
     #       matrices['midtones'] + (matrices['lights'] - matrices['midtones']) / 383 * (pix_sum - 383)
 
-
+EPS = 0.0000001
 def find_matrix_from_points(before, after, c_sum):  # Most fun function
     a = before[0][0]
     b = before[0][1]
@@ -479,10 +479,10 @@ def find_matrix_from_points(before, after, c_sum):  # Most fun function
                     (e - b) * (d - a - e + b) * a + (d - a) * (e - b - d + a) * b) - n * (
                              -(d - a - e + b) * a - (e - b - d + a) * b)) / \
                 (-(e - b - f + c) * (d - a - e + b) * a - (d - a - f + c) * (e - b - d + a) * b + (d - a - e + b) * (
-                            e - b - d + a) * c)
-        mult2 = (c_sum * (d - a) - mult3 * (d - a - f + c) - n) / (d - a - e + b)
+                            e - b - d + a) * c + EPS)
+        mult2 = (c_sum * (d - a) - mult3 * (d - a - f + c) - n) / (d - a - e + b + EPS)
 
-        mult1 = (c_sum * (e - b) - mult3 * (e - b - f + c) - n) / (e - b - d + a)
+        mult1 = (c_sum * (e - b) - mult3 * (e - b - f + c) - n) / (e - b - d + a + EPS)
     except RuntimeWarning:
         print('Что-то не то в множителях. Справлюсь, не переживай!)')
         return 0, 0, 0
