@@ -1337,7 +1337,8 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
         if '--nowb' not in argv:
             print('Настройка баланса белого/черного завершена.')
             # print('Было:\r\n', before_calib, '\r\n', 'Стало:\r\n', col1)
-        print('After wb correction:\r\n', normalize_matrix(cubes[temperature]['midtones']))
+        if '--debug' in argv:
+            print('After wb correction:\r\n', normalize_matrix(cubes[temperature]['midtones']))
         print('Приступаем к калибровке цветов.')
         for i in range(1):  # Colors fixing
 
@@ -1588,11 +1589,11 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
                     print('Matrix row ', n, '\r\n', matrix[n])'''
 
                 best_r = matrix_R[0]
-                applied = apply_matrix(np_sample, normalize_matrix(np.array([matrix_R[0], matrix[1], matrix[2]])))
-                lowest_diff = np.absolute(exp - applied).sum()
+                applied = apply_matrix(np_sample[6:], normalize_matrix(np.array([matrix_R[0], matrix[1], matrix[2]])))
+                lowest_diff = np.absolute(exp[6:] - applied).sum()
                 for n in range(1, len(matrix_R)):
-                    applied = apply_matrix(np_sample, normalize_matrix(np.array([matrix_R[n], matrix[1], matrix[2]])))
-                    new_diff = np.absolute(exp - applied).sum()
+                    applied = apply_matrix(np_sample[6:], normalize_matrix(np.array([matrix_R[n], matrix[1], matrix[2]])))
+                    new_diff = np.absolute(exp[6:] - applied).sum()
                     if new_diff <= lowest_diff:
                         best_r = matrix_R[n]
                         lowest_diff = new_diff
@@ -1601,11 +1602,11 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
                     print('Best_r', best_r)
 
                 best_g = matrix_G[0]
-                applied = apply_matrix(np_sample, normalize_matrix(np.array([best_r, matrix_G[0], matrix[2]])))
-                lowest_diff = np.absolute(exp - applied).sum()
+                applied = apply_matrix(np_sample[6:], normalize_matrix(np.array([best_r, matrix_G[0], matrix[2]])))
+                lowest_diff = np.absolute(exp[6:] - applied).sum()
                 for n in range(1, len(matrix_G)):
-                    applied = apply_matrix(np_sample, normalize_matrix(np.array([best_r, matrix_G[n], matrix[2]])))
-                    new_diff = np.absolute(exp - applied).sum()
+                    applied = apply_matrix(np_sample[6:], normalize_matrix(np.array([best_r, matrix_G[n], matrix[2]])))
+                    new_diff = np.absolute(exp[6:] - applied).sum()
                     if new_diff <= lowest_diff:
                         best_g = matrix_G[n]
                         lowest_diff = new_diff
@@ -1614,11 +1615,11 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
                     print('Best_g', best_g)
 
                 best_b = matrix_B[0]
-                applied = apply_matrix(np_sample, normalize_matrix(np.array([best_r, best_g, matrix_B[0]])))
-                lowest_diff = np.absolute(exp - applied).sum()
+                applied = apply_matrix(np_sample[6:], normalize_matrix(np.array([best_r, best_g, matrix_B[0]])))
+                lowest_diff = np.absolute(exp[6:] - applied).sum()
                 for n in range(1, len(matrix_B)):
-                    applied = apply_matrix(np_sample, normalize_matrix(np.array([best_r, best_g, matrix_B[n]])))
-                    new_diff = np.absolute(exp - applied).sum()
+                    applied = apply_matrix(np_sample[6:], normalize_matrix(np.array([best_r, best_g, matrix_B[n]])))
+                    new_diff = np.absolute(exp[6:] - applied).sum()
                     if new_diff <= lowest_diff:
                         best_b = matrix_B[n]
                         lowest_diff = new_diff
@@ -1627,11 +1628,11 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
                     print('Best_b', best_b)
 
                 # Refine
-                applied = apply_matrix(np_sample, normalize_matrix(np.array([matrix_R[0], best_g, best_b])))
-                lowest_diff = np.absolute(exp - applied).sum()
+                applied = apply_matrix(np_sample[6:], normalize_matrix(np.array([matrix_R[0], best_g, best_b])))
+                lowest_diff = np.absolute(exp[6:] - applied).sum()
                 for n in range(1, len(matrix_R)):
-                    applied = apply_matrix(np_sample, normalize_matrix(np.array([matrix_R[n], best_g, best_b])))
-                    new_diff = np.absolute(exp - applied).sum()
+                    applied = apply_matrix(np_sample[6:], normalize_matrix(np.array([matrix_R[n], best_g, best_b])))
+                    new_diff = np.absolute(exp[6:] - applied).sum()
                     if new_diff <= lowest_diff:
                         best_r = matrix_R[n]
                         lowest_diff = new_diff
@@ -1639,11 +1640,11 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
                     print(lowest_diff)
                     print('Best_r refined', best_r)
 
-                applied = apply_matrix(np_sample, normalize_matrix(np.array([best_r, matrix_G[0], best_b])))
-                lowest_diff = np.absolute(exp - applied).sum()
+                applied = apply_matrix(np_sample[6:], normalize_matrix(np.array([best_r, matrix_G[0], best_b])))
+                lowest_diff = np.absolute(exp[6:] - applied).sum()
                 for n in range(1, len(matrix_G)):
-                    applied = apply_matrix(np_sample, normalize_matrix(np.array([best_r, matrix_G[n], best_b])))
-                    new_diff = np.absolute(exp - applied).sum()
+                    applied = apply_matrix(np_sample[6:], normalize_matrix(np.array([best_r, matrix_G[n], best_b])))
+                    new_diff = np.absolute(exp[6:] - applied).sum()
                     if new_diff <= lowest_diff:
                         best_g = matrix_G[n]
                         lowest_diff = new_diff
@@ -1651,11 +1652,11 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
                     print(lowest_diff)
                     print('Best_g refined', best_g)
 
-                applied = apply_matrix(np_sample, normalize_matrix(np.array([best_r, best_g, matrix_B[0]])))
-                lowest_diff = np.absolute(exp - applied).sum()
+                applied = apply_matrix(np_sample[6:], normalize_matrix(np.array([best_r, best_g, matrix_B[0]])))
+                lowest_diff = np.absolute(exp[6:] - applied).sum()
                 for n in range(1, len(matrix_B)):
-                    applied = apply_matrix(np_sample, normalize_matrix(np.array([best_r, best_g, matrix_B[n]])))
-                    new_diff = np.absolute(exp - applied).sum()
+                    applied = apply_matrix(np_sample[6:], normalize_matrix(np.array([best_r, best_g, matrix_B[n]])))
+                    new_diff = np.absolute(exp[6:] - applied).sum()
                     if new_diff <= lowest_diff:
                         best_b = matrix_B[n]
                         lowest_diff = new_diff
@@ -1663,11 +1664,13 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
                     print(lowest_diff)
                     print('Best_b refined', best_b)
 
-                if np.absolute(exp - apply_matrix(np_sample, normalize_matrix(matrix))).sum() > lowest_diff:
+                if np.absolute(exp[6:] - apply_matrix(np_sample[6:], normalize_matrix(matrix))).sum() > lowest_diff and '--new' in argv:
                     matrix = normalize_matrix(np.array([best_r, best_g, best_b]))
                     print('Using new method')
                 else:
                     print('Using standart method')
+
+                # Empirically enhance matrix
 
                 def matrix_saturate(matrix):
                     # m_d = (matrix - np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])) / 50
@@ -1681,29 +1684,135 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
                     matrix_desat = matrix - m_d
                     return matrix_desat
 
-
-                print('More saturated diff', np.absolute(exp - apply_matrix(np_sample, normalize_matrix(matrix))).sum())
-
-                while np.absolute(exp - apply_matrix(np_sample, normalize_matrix(matrix_saturate(matrix)))).sum() < lowest_diff:
+                while np.absolute(exp[6:] - apply_matrix(np_sample[6:], normalize_matrix(matrix_saturate(matrix)))).sum() < lowest_diff:
                     matrix = matrix_saturate(matrix)
-                    lowest_diff = np.absolute(exp - apply_matrix(np_sample, normalize_matrix(matrix))).sum()
+                    lowest_diff = np.absolute(exp[6:] - apply_matrix(np_sample[6:], normalize_matrix(matrix))).sum()
                     if '--debug' in argv:
                         print('+')
 
-                while np.absolute(exp - apply_matrix(np_sample, normalize_matrix(matrix_desaturate(matrix)))).sum() < lowest_diff:
+                while np.absolute(exp[6:] - apply_matrix(np_sample[6:], normalize_matrix(matrix_desaturate(matrix)))).sum() < lowest_diff:
                     matrix = matrix_desaturate(matrix)
-                    lowest_diff = np.absolute(exp - apply_matrix(np_sample, normalize_matrix(matrix))).sum()
+                    lowest_diff = np.absolute(exp[6:] - apply_matrix(np_sample[6:], normalize_matrix(matrix))).sum()
                     if '--debug' in argv:
                         print('-')
-                '''if checker == 'x-rite':
-                    matrix -= np.array([[0.07383913, -0.01645874, -0.0573804],
-                                        [-0.12457132,  0.2080515,  -0.08348018],
-                                        [-0.07460538, -0.04046158,  0.10687024]])
-                elif checker == 'spydercheckr24':
-                    matrix -= np.array([[0.08126999,  0.03904493, -0.12031491],
-                                        [-0.15891245,  0.16444426, -0.0055318],
-                                        [-0.123535,    0.02758223,  0.10464843]])
-                '''
+
+                for i in range(3):
+                    for j in range(3):
+                        if j == 2:
+                            k = 0
+                        else:
+                            k = j+1
+
+                        while np.absolute(exp[6:] - apply_matrix(np_sample[6:], matrix_plus_minus(matrix, (i, j), (i, k), 0.01))).sum() < lowest_diff:
+                            matrix = matrix_plus_minus(matrix, (i, j), (i, k), 0.01)
+                            lowest_diff = np.absolute(exp[6:] - apply_matrix(np_sample[6:], matrix_plus_minus(matrix, (i, j), (i, k), 0.01))).sum()
+
+                        while np.absolute(exp[6:] - apply_matrix(np_sample[6:], matrix_plus_minus(matrix, (i, k), (i, j), 0.01))).sum() < lowest_diff:
+                            matrix = matrix_plus_minus(matrix, (i, k), (i, j), 0.01)
+                            lowest_diff = np.absolute(exp[6:] - apply_matrix(np_sample[6:], matrix_plus_minus(matrix, (i, k), (i, j), 0.01))).sum()
+
+                        while np.absolute(exp[6:] - apply_matrix(np_sample[6:], matrix_plus_minus(matrix, (j, i), (k, i), 0.01))).sum() < lowest_diff:
+                            matrix = matrix_plus_minus(matrix, (j, i), (k, i), 0.01)
+                            lowest_diff = np.absolute(exp[6:] - apply_matrix(np_sample[6:], matrix_plus_minus(matrix, (j, i), (k, i), 0.01))).sum()
+
+                        while np.absolute(exp[6:] - apply_matrix(np_sample[6:], matrix_plus_minus(matrix, (k, i), (j, i), 0.01))).sum() < lowest_diff:
+                            matrix = matrix_plus_minus(matrix, (k, i), (j, i), 0.01)
+                            lowest_diff = np.absolute(exp[6:] - apply_matrix(np_sample[6:], matrix_plus_minus(matrix, (k, i), (j, i), 0.01))).sum()
+
+                for k in range(2):
+                    for i in range(3):
+                        for j in range(3):
+                            while np.absolute(exp[6:] - apply_matrix(np_sample[6:], normalize_matrix(matrix_change(matrix, (i, j), 0.01)))).sum() < lowest_diff:
+                                matrix = matrix_change(matrix, (i, j), 0.01)
+                                lowest_diff = np.absolute(exp[6:] - apply_matrix(np_sample[6:], normalize_matrix(matrix_change(matrix, (i, j), 0.01)))).sum()
+
+                            while np.absolute(exp[6:] - apply_matrix(np_sample[6:], normalize_matrix(matrix_change(matrix, (i, j), -0.01)))).sum() < lowest_diff:
+                                matrix = matrix_change(matrix, (i, j), 0.01)
+                                lowest_diff = np.absolute(exp[6:] - apply_matrix(np_sample[6:], normalize_matrix(matrix_change(matrix, (i, j), -0.01)))).sum()
+                print('Current diff: ', lowest_diff)
+
+                def colors_refine(matrix):
+                    appl = apply_matrix(np_sample, matrix)
+                    diff = appl - exp
+                    red_diff = diff[9]
+                    pink_diff = diff[14]
+                    while red_diff[1] > red_diff[2] and pink_diff[1] > pink_diff[2]:
+                        matrix = matrix_plus_minus(matrix, (2, 0), (1, 0), 0.01)
+                        appl = apply_matrix(np_sample, matrix)
+                        diff = appl - exp
+                        red_diff = diff[9]
+                        pink_diff = diff[14]
+                        print('gr - br +')
+                    count = 0
+                    while red_diff[1] < red_diff[2] and pink_diff[1] < pink_diff[2]:
+                        matrix = matrix_plus_minus(matrix, (1, 0), (2, 0), 0.01)
+                        appl = apply_matrix(np_sample, matrix)
+                        diff = appl - exp
+                        red_diff = diff[9]
+                        pink_diff = diff[14]
+                        count += 1
+                        if count % 30000 == 0:
+                            print(matrix)
+                            print(diff[9])
+                            print('gr + br -')
+
+                    green_diff = diff[10]
+                    dark_green_diff = diff[20]
+
+                    while green_diff[0] > green_diff[2] and dark_green_diff[0] > dark_green_diff[2]:
+                        matrix = matrix_plus_minus(matrix, (2, 1), (0, 1), 0.01)
+                        appl = apply_matrix(np_sample, matrix)
+                        diff = appl - exp
+                        green_diff = diff[10]
+                        dark_green_diff = diff[20]
+                        print('rg - bg +')
+
+                    while green_diff[0] < green_diff[2] and dark_green_diff[0] < dark_green_diff[2]:
+                        matrix = matrix_plus_minus(matrix, (0, 1), (2, 1), 0.01)
+                        appl = apply_matrix(np_sample, matrix)
+                        diff = appl - exp
+                        green_diff = diff[10]
+                        dark_green_diff = diff[20]
+                        print('rg + bg -')
+
+                    blue_diff = diff[11]
+                    light_blue_diff = diff[21]
+                    count = 0
+                    while blue_diff[1] > blue_diff[0] and light_blue_diff[1] > light_blue_diff[0]:
+                        matrix = matrix_plus_minus(matrix, (0, 2), (1, 2), 0.01)
+                        appl = apply_matrix(np_sample, matrix)
+                        diff = appl - exp
+                        blue_diff = diff[11]
+                        light_blue_diff = diff[21]
+                        count += 1
+                        if count % 1000 == 0:
+                            print(matrix)
+                            print('rb + gb -')
+                    count = 0
+                    while blue_diff[1] < blue_diff[0] and light_blue_diff[1] < light_blue_diff[0]:
+                        matrix = matrix_plus_minus(matrix, (1, 2), (0, 2), 0.01)
+                        appl = apply_matrix(np_sample, matrix)
+                        diff = appl - exp
+                        blue_diff = diff[11]
+                        light_blue_diff = diff[21]
+                        count += 1
+                        if count % 1000 == 0:
+                            print('rb - gb +')
+                            print(matrix)
+                    return matrix
+                for i in range(10):
+                    matrix = colors_refine(matrix)
+                '''for i in range(3):
+                    while np.absolute(exp[6:] - apply_matrix(np_sample[6:], np.array([matrix[0] - 0.001, matrix[1], matrix[2]]))).sum() < lowest_diff:
+                        matrix[0] -= 0.001
+                        lowest_diff = np.absolute(exp[6:] - apply_matrix(np_sample[6:], np.array([matrix[0] - 0.001, matrix[1], matrix[2]]))).sum()
+                    while np.absolute(exp[6:] - apply_matrix(np_sample[6:], np.array([matrix[0] + 0.001, matrix[1], matrix[2]]))).sum() < lowest_diff:
+                        matrix[0] += 0.001
+                        lowest_diff = np.absolute(
+                            exp - apply_matrix(np_sample, np.array([matrix[0] + 0.001, matrix[1], matrix[2]]))).sum()'''
+
+                # curr_diff = curr_diff - np.min(np.absolute(curr_diff))
+
                 if debug:
                     print(np.around(np.array(matrix - np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])), 8))
                     print(grade.title(), '\r\n')
@@ -1715,8 +1824,6 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
                     # print('Applied matrix:\r\n', apply_matrix(np_sample[6:9], matrix))
                 # print(red_exp, green_exp, blue_exp)
                 return matrix
-
-
 
             # Midtones
             cubes[temperature]['midtones'] = making_matrix('midtones')
