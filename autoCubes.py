@@ -19,11 +19,21 @@ __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file
 camera_folder = '/storage/self/primary/DCIM/Camera'
 photon_raw_folder = '/storage/self/primary/DCIM/PhotonCamera/Raw'
 checker = 'spydercheckr24'
+saturation = 0
+
+
 if '--xrite' in argv:
     checker = 'x-rite'
 
 if '--photonraw' in argv:
     camera_folder = photon_raw_folder
+
+for arg in argv:
+    sat_argv = re.search(r'\-\-saturation=\-?[0-9]', arg)
+    if isinstance(sat_argv, re.Match):
+        saturation = int(sat_argv.group().split('=')[-1])
+        print('Custom saturation: ', saturation)
+        break
 
 pipetka = 100
 x_multipliers = [0.157, 0.366, 0.572, 0.786]
@@ -1614,6 +1624,11 @@ def do_the_calibration(cubes, number_of_times, temperature='warm', backup=dict({
                     matrix[1] *= 1 / matrix[1].sum()
                     matrix[2] *= 1 / matrix[2].sum()
                     matrix = normalize_matrix(matrix)
+
+                if saturation != 0:
+                    matrix -= saturation * 0.05
+                    for i in range(3):
+                        matrix[i][i] += saturation * 0.15
 
                 '''for i in range(3):
                     for j in range(3):
