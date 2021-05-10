@@ -29,7 +29,7 @@ if '--photonraw' in argv:
     camera_folder = photon_raw_folder
 
 for arg in argv:
-    sat_argv = re.search(r'\-\-saturation=\-?[0-9]', arg)
+    sat_argv = re.search(r'--saturation=-?[0-9]', arg)
     if isinstance(sat_argv, re.Match):
         saturation = int(sat_argv.group().split('=')[-1])
         print('Custom saturation: ', saturation)
