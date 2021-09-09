@@ -1,9 +1,9 @@
 # autoCCT
-This script makes CCT matrix using x-rite or spydercheckr 24 colorcheckers to correct camera colors.
+This script makes CCT matrix using X-Rite or SpyderCHECKR 24 colorcheckers to correct camera colors.
   
 # Инструкция
 
-Чтобы использовать этот скрипт, вам понадобятся **python** не менее версии 3.6.0 и **pip**
+Чтобы использовать этот скрипт, вам понадобятся **Python** не менее версии 3.6.0 и **pip**
 
 Перейдите по ссылке https://www.python.org/downloads/  чтобы скачать и установить Python
 
@@ -44,14 +44,13 @@ This script makes CCT matrix using x-rite or spydercheckr 24 colorcheckers to co
 
 (Если вы калибруете по фото без телефона, то не получится использовать уточнение матрицы, потому что для этого нужно сделать снимок с рассчетной матрицей)
 
-Если вы будете использовать одну матрицу(gcam), снимайте в условиях нейтрального освещения
-(дневной свет, лампа дневного света)
+Если вы будете использовать одну матрицу (Google Camera), снимайте в условиях нейтрального освещения (дневной свет, лампа дневного света)
 
 Снимайте цветовую мишень так, чтобы белый квадратик мишени был слева.
 
 При этом не важно, горизонтально или вертикально.
 
-Для Gcam добавьте ключ **--gcam**
+Для Gcam (Google Camera) добавьте ключ **--gcam**
 
 Для использования с чекером x-rite  добавьте ключ **--xrite**
 
@@ -71,7 +70,7 @@ This script makes CCT matrix using x-rite or spydercheckr 24 colorcheckers to co
 Если вы снимаете на PhotonCamera и телефон подключен по adb, 
 то при калибровке автоматически выставится матрица для калибровки.
 
-Если вы снимаете на Gcam с функцией cct, 
+Если вы снимаете на Google Camera с функцией CCT, 
 перед калибровкой отключите настройки цвета и выставьте матрицу следующим образом:
 
 Rr: 1  Rg: 0  Rb: 0
@@ -83,11 +82,11 @@ Br: 0  Bg: 0  Bb: 1
     
 # Instructions
 
-To use this script you will need working **python > 3.6.0** and **pip** installed
+To use this script, you will need **Python** at least version 3.6.0 and **pip**
 
-https://www.python.org/downloads/  to download and install python (latest will do)
+Go to https://www.python.org/downloads/ to download and install Python
 
-then use command line:
+Next, use the command line to install pip:
 
 **curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py**
 
@@ -97,38 +96,60 @@ To install requirements, use the command:
   
   **pip install -r requirements.txt**
   
+Run the script with the command:
   
-Before you start calibration, make sure that you shoot the color checker at the necessary white balance conditions.
+  **python autoCubes.py**
+  
+Add keys with a space after them, if necessary. For example:
 
-If you use one matrix (GCAM), remove in neutral lighting conditions
+  **python autoCubes.py --gcam**
+  
+  or
+  
+  **python autoCubes.py --nophone --debug --showpoints --nowb**
 
-(daylight, daylight lamp)
+  
+Before you start calibrating, make sure you shoot the target under the necessary white balance conditions.
 
-Remove the color target so that the white color checker square is on the left.
+Connect your phone via adb (attached) and authorize it, if not done before, to automatically load photos from your phone.
 
-It does not matter, horizontally or vertically.
+If there is an adb related error on startup and you are sure the phone is connected, check to see if adb is already running and terminate it in the task manager. 
 
-For GCAM, add the key **--gcam**
+Or use the **--nophone** key to use local photo. By default the local photo is found in the folder where the script is located and named last_photo.jpg
 
-To use with X-Rite Checker, add the **--xrite** key.
+If you want to specify a different file, you can send the file name to the script, e.g. 
+  
+  **python autoCubes.py --nophone some_photo.jpg**
 
-If you calibrate two matrices / cubes for warm or cold temperatures, a warm matrix is calibrated by default.
+(If you calibrate from a photo without a phone, you can't use matrix refinement because you have to take a photo with a calculated matrix to do that)
 
-For Cold Calibration Add key **--cool**
+If you are going to use one sensor (Google Camera), take the picture under neutral light (daylight, daylight bulb)
 
-For two matrices add **--matrixes**
+Shoot the color target so that the white square of the target is on the left.
 
-For cube add **--cube**
+It does not matter if it is horizontal or vertical.
 
-For cubes **--cubes**
+For Gcam (Google Camera) add the key **--gcam**
 
-If you shoot on PhotonCamera and the phone is connected to ADB,
+For x-rite checker add key **--xrite**
 
-The calibration matrix is automatically adjusting during calibration.
+If you are calibrating two matrices/cubes for warm or cold temperatures, the warm matrix is calibrated by default.
 
-If you are shooting on GCAM with a CCT function,
+To calibrate cold, add the key **--cool**
 
-Turn off the color settings before calibrating and set the matrix in settings as follows:
+For two matrices, add **--matrixes**
+
+(correctly matrices, but some talented developers have problems with English)
+
+For a cube, add **--cube**
+
+For cubes add **--cubes**.
+
+
+If you shoot with a PhotonCamera and your phone is adb-connected, 
+it will automatically calibrate the sensor for calibration.
+
+If you are shooting with a Google Camera with CCT, before calibrating, turn off the color settings and set the sensor as follows:
 
 RR: 1 RG: 0 RB: 0
 
